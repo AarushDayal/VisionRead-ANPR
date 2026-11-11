@@ -87,6 +87,18 @@ Finally, we ran full vehicle photos through **detection → crop → OCR → con
 
 The 12 photos in the demo gallery are full vehicle or street scenes for showing how the app works. They are **presentation examples**, not a new benchmark or extra evidence of accuracy.
 
+### Exactly what was trained, and what was reused
+
+| Component | What happened |
+| --- | --- |
+| YOLO11n plate detector | Started with free pretrained weights and fine-tuned it on our plate boxes. The first run stopped after three completed epochs. We saved its best checkpoint, then ran three more epochs after adding 180 screened training photos. This is the component trained on the laptop GPU. |
+| EasyOCR and FastPlateOCR | Used existing pretrained readers. We compared them on the same crops and selected FastPlateOCR; we did **not** fine-tune either OCR network. FastPlateOCR runs locally through ONNX. |
+| Correctness model | Fitted a small logistic regression on 339 calibration predictions, using whether each complete plate string matched its label as the answer. This is training, but much smaller than training a vision network. |
+| Acceptance thresholds | Chosen on 255 separate validation predictions. A threshold is a decision rule, not another neural network. |
+| 254-image test | Used to report the results. Later detector changes were checked against this already-viewed test, so the updated comparison is exploratory. |
+
+To reproduce the steps, follow the commands in the [README](../README.md). The main scripts are `prepare_indian → detector prepare/train → baseline_v2 → eval_router → eval_end_to_end → plot_results`. The second detector source is imported before the extra training stage. The demo simply **loads** the saved detector, OCR reader, and correctness model; it does not train them when you click Analyze.
+
 ## Part 2: What happens to one photo in the demo
 
 Imagine you upload a photo of a car whose true plate reads `KA03MN1234`. These characters are just an example; they are not a claimed test result.
@@ -127,6 +139,57 @@ These are the current measured results on the grouped **254-image test**. The de
 Do not describe 97.6% detector box matching as “97.6% plate reading accuracy.” Also, an accepted result can still be wrong. The 10% setting is a *threshold-selection target*, and its actual observed error here was 14.7%.
 
 The dataset has some inaccurate XML labels, repeated video frames, foreign plates, and limited coverage of difficult conditions. The results describe this academic experiment; they are not a claim of reliable performance at every camera, road, or time of day. **OCR is the main current bottleneck.** The appropriate next research step is to curate better Indian plate labels, improve or train the reader, and evaluate again without using the test repeatedly to guide changes.
+
+## How this compares with real products and research
+
+**Commercial systems:** The basic detector-and-reader idea is already used in industry. For example, [AXIS License Plate Verifier](https://www.axis.com/en-ph/products/axis-license-plate-verifier) runs recognition on compatible cameras and supports vehicle access, free-flow traffic, search, and event logs. Some systems also identify vehicle type, color, make, and model. [Rekor Edge Pro documentation](https://docs.rekor.ai/edge-pro/configuring/overview) describes configuring camera exposure and infrared settings for day and night conditions. These examples show why camera choice and image capture matter as much as software. Commercial products may connect to gates, lists of allowed vehicles, databases, and continuous video streams. RiskGate currently analyzes uploaded still images or small batches on a laptop; it has no live camera, gate, traffic-scale storage, or deployment accuracy claim.
+
+**Research:** Researchers are still tackling low resolution, blur, different layouts, and confidence. The [ICPR 2026 low-resolution competition](https://arxiv.org/abs/2604.22506) used real low-quality plate tracks and showed that multiple views and difficult image conditions remain important. [BLPR](https://arxiv.org/abs/2604.09927) studies confidence-driven use of a vision-language model as a fallback. [Neural Sentinel](https://arxiv.org/abs/2602.07051) studies calibration and human involvement. These are examples of related ideas, **not features we invented or experiments we completed**. RiskGate's contribution is a small, transparent Indian-plate prototype that connects local detection, local OCR, calibrated whole-string confidence, and a measurable accept/review rule. Its measured accuracy is below what a dependable field system would need.
+
+**Why our result cannot be compared directly with a product's advertised accuracy:** Products may use purpose-built cameras, controlled installation angles, infrared lighting, repeated video frames, and different datasets or definitions of a “correct” read. We used a mixed public-image dataset and required the *entire plate string* to match. A fair comparison would run both systems on the same independently labeled images under the same conditions.
+
+Here are the research papers in one sentence each. Their reported results use different countries, datasets, and evaluation rules, so do not compare their percentages directly with RiskGate's 28% exact-match figure.
+
+| Research | Main idea | Relationship to RiskGate |
+| --- | --- | --- |
+| [Indian Licence Plate Dataset in the Wild](https://arxiv.org/abs/2111.06054) | Indian plates in everyday scenes vary in appearance and conditions. | Motivates using Indian vehicle photos instead of only neat plate crops. |
+| [VehiclePaliGemma](https://arxiv.org/abs/2412.14197) | Fine-tunes a vision-language model for difficult plate reading. | A possible stronger reader to study later; RiskGate did not train one. |
+| [Neural Sentinel](https://arxiv.org/abs/2602.07051) | Combines a vision-language model with confidence calibration and human corrections. | Related motivation for measuring confidence and showing corrections; our corrections are logged, not automatically used for continual learning. |
+| [BLPR](https://arxiv.org/abs/2604.09927) | Uses a second vision-language reader only when the first reading is uncertain. | A possible future fallback; our current uncertain cases go to a person. |
+| [ICPR 2026 low-resolution LPR competition](https://arxiv.org/abs/2604.22506) | Studies recognition on difficult low-resolution plate tracks. | Motivates testing small plates and combining multiple video frames later. |
+| [Nigerian VLM comparison](https://arxiv.org/abs/2607.02025) | Compares five vision-language models on 88 challenging Nigerian images. | Shows another approach worth benchmarking, but it is a different country and a small test. |
+
+### Future work, in a sensible order
+
+1. **Fix the answer key.** Review more XML labels, remove foreign or incomplete examples, and gather permission-cleared Indian plates from the cameras intended for use.
+2. **Improve reading.** Train or fine-tune a specialist OCR model on corrected Indian crops; evaluate small, blurry, two-row, night, and angled plates separately.
+3. **Use more than one frame.** A vehicle in video can give several views of the same plate; combine them only after measuring whether this reduces errors.
+4. **Re-test without peeking.** Freeze the new model and policy, then use a fresh grouped test from a different camera or location. Report whole-string accuracy, accepted error, coverage, and processing time.
+5. **Only then consider deployment.** Add camera integration, secure event storage, access rules, monitoring, privacy controls, and a human review workflow. An optional VLM second opinion should be compared on the same held-out images, including latency, cost, and wrong-but-confident answers.
+
+## Which remaining files do what?
+
+Start with the **live path**: `app/streamlit_app.py` calls the reader and detector, then `riskgate/features.py`, `calibration.py`, `grammar.py`, and `router.py`. Read the training and evaluation scripts afterward. Files with `__init__.py` simply mark Python packages.
+
+| File or group | Why it remains |
+| --- | --- |
+| `app/streamlit_app.py` | The whole user interface: upload/gallery, analysis, decision display, correction, batch export, and evidence tabs. Its `analyze()` function is the live photo-to-decision path. |
+| `riskgate/config.py`, `contracts.py` | Project paths and small data shapes: a labeled plate sample and an OCR result. |
+| `riskgate/data.py` | Load annotated samples, apply any separately reviewed text overrides, group samples for splitting, and crop images. |
+| `riskgate/engines/easyocr_engine.py`, `fastplate_engine.py` | Wrap the two existing OCR libraries so each returns text, model score, timing, and error information in the same form. |
+| `riskgate/grammar.py`, `metrics.py` | Plate-format categories and measurement helpers such as exact match, character error rate, calibration error, and coverage. |
+| `riskgate/features.py`, `calibration.py`, `router.py` | Convert an OCR result into numeric signals, fit/load the correctness model, choose thresholds, and return ACCEPT or REVIEW/ESCALATE. The offline app displays non-accepted cases for review. |
+| `scripts/prepare_indian.py`, `import_extra_detection.py` | Read source annotations and prepare the original and extra detector data. |
+| `scripts/detector.py` | Prepare YOLO labels, train/fine-tune the detector, and measure box matching. |
+| `scripts/baseline_v2.py`, `eval_router.py`, `eval_end_to_end.py` | Compare OCR readers, fit confidence and select thresholds, then evaluate the full image pipeline. |
+| `scripts/prepare_gallery.py`, `label_tool.py` | Copy the real-scene demo gallery and review draft text labels without silently overwriting source XML labels. |
+| `scripts/plot_results.py`, `package_submission.py` | Draw the report charts and assemble the portable submission ZIP. |
+| `tests/` | Check grouping, labels, box math, OCR ordering, confidence, routing, metrics, and the live gallery path. |
+| `docs/`, `presentation/` | This explanation, data provenance, measured report, and slides. |
+| `data/`, `weights/`, `results/` | Local source/generated data, saved models, and experiment outputs. Large files are intentionally outside Git. |
+| `README.md`, `requirements.txt`, `Makefile`, `.streamlit/config.toml` | Starting instructions, Python dependencies, test command, and the demo's visual settings. |
+
+If asked about a line of code, identify **its input, output, and which step above it serves**. For example, `analyze()` receives image pixels and a mode, detects/crops when needed, calls OCR, estimates correctness, and returns a result dictionary to the screen. This is more useful than memorizing syntax without knowing what it does.
 
 ## What you can show in the faculty demo
 

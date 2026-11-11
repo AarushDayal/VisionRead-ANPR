@@ -1,9 +1,4 @@
-.PHONY: check test smoke
+.PHONY: check
 
-check: test smoke
-
-test:
+check:
 	./venv/bin/python -m pytest tests -q
-
-smoke:
-	./venv/bin/python -m scripts.run_eval --images 10

@@ -1,15 +1,8 @@
-datacluster/
-crops/
-results/
 venv/
+.pytest_cache/
 __pycache__/
 *.pyc
-splits.json
-eval_easyocr.csv
 data/
-draft_labels.csv
-splits_v2.json
-calibration.json
 weights/
-*.pt
+results/
 RiskGate_Submission.zip

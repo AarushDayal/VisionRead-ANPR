@@ -95,30 +95,6 @@ def make_splits_v2(samples: list[PlateSample], path: Path = config.SPLITS_V2) ->
     return splits
 
 
-def make_splits(samples: list[PlateSample]) -> dict[str, list[str]]:
-    """Split ALL dataset image NAMES (never plates of one image apart) into calib/val/test.
-
-    # ponytail: split all 47 images, not just the ~21 that carry labelled plates -
-    # a Part-2 split should cover every image the eval might see later.
-    """
-    names = sorted(p.name for p in config.ANNOTATIONS_DIR.glob("*.xml"))
-    rng = random.Random(config.SEED)
-    rng.shuffle(names)
-    n_calib = round(config.SPLIT_FRACTIONS[0] * len(names))
-    n_val = round(config.SPLIT_FRACTIONS[1] * len(names))
-    splits = {
-        "calib": names[:n_calib],
-        "val": names[n_calib : n_calib + n_val],
-        "test": names[n_calib + n_val :],
-    }
-    assert not set(splits["calib"]) & set(splits["val"]) and not set(
-        splits["calib"]
-    ) & set(splits["test"]) and not set(splits["val"]) & set(splits["test"]), \
-        "an image appeared in two splits"
-    config.SPLITS_JSON.write_text(json.dumps(splits, indent=2))
-    return splits
-
-
 def crop(img, bbox):
     """Crop bbox out of image, honouring config.MIN_CROP_H (empty crop -> None)."""
     x1, y1, x2, y2 = bbox

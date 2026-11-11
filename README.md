@@ -1,6 +1,6 @@
 # RiskGate ANPR
 
-An offline Indian number plate research prototype. It detects a plate in a vehicle photo, reads the crop with a local OCR model, estimates whether the whole reading is correct, and sends uncertain cases for human review. The [architecture guide](docs/ARCHITECTURE_EXPLAINED.md) explains the complete project in simple language; the [study guide](docs/STUDY_GUIDE.md) has viva questions, and the [evaluation report](docs/EVALUATION_REPORT.md) records actual results and limitations.
+An offline Indian number plate research prototype. It detects a plate in a vehicle photo, reads the crop with a local OCR model, estimates whether the whole reading is correct, and sends uncertain cases for human review. The [project guide](docs/ARCHITECTURE_EXPLAINED.md) explains the data flow, training, code files, industry comparison, and viva questions in simple language. The [evaluation report](docs/EVALUATION_REPORT.md) records the measured results and limitations.
 
 ## Current measured result
 
@@ -41,7 +41,7 @@ make check
 
 GPU training and GPU EasyOCR inference require a working CUDA installation. The project was run with an RTX 4060 Laptop GPU; FastPlateOCR uses local ONNX CPU inference. The detector training run was interrupted after three completed epochs; its best available checkpoint was copied to `weights/plate_detector.pt` and evaluated. The one-time test commands refuse to overwrite final results.
 
-The source images, crops, generated weights, cache, and result files are Git-ignored. Do not redistribute the dataset. See [data notes](docs/DATA_NOTES.md) and [project status](docs/PROJECT_STATUS.md).
+The source images, crops, generated weights, and result files are Git-ignored. Do not redistribute the dataset. See the [data notes](docs/DATA_NOTES.md).
 
 ## Project layout
 
@@ -49,11 +49,10 @@ The source images, crops, generated weights, cache, and result files are Git-ign
 | --- | --- |
 | `app/` | Streamlit demo. |
 | `riskgate/` | Detection, OCR wrappers, confidence, and routing code. |
-| `scripts/` | Data preparation, experiments, evaluation, packaging, and the smoke check. |
+| `scripts/` | Data preparation, training, evaluation, and packaging. |
 | `tests/` | Automated checks. |
-| `docs/` | Study material, project status, and evaluation notes. |
+| `docs/` | Project explanation, data notes, and measured evaluation. |
 | `presentation/` | Slides and PDF for the faculty presentation. |
-| `archive/` | Early prototype scripts and their small CSV; not used by the final demo. |
 | `data/`, `weights/`, `results/` | Local inputs, model files, and generated outputs. |
 
-Run commands from the project root. The generated submission ZIP stays at the root; calibration lives in `weights/`, and split manifests live in `data/` or `archive/`.
+Run commands from the project root. The generated submission ZIP stays at the root; calibration lives in `weights/`, and the grouped split manifest lives in `data/`.

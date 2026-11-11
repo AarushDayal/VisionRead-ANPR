@@ -17,7 +17,8 @@ RESULTS = ["selected_reader.json", "final_test.json", "end_to_end_test.json",
 def main() -> None:
     files = [ROOT / name for name in SINGLE]
     for folder in FOLDERS:
-        files += [path for path in (ROOT / folder).rglob("*") if path.is_file() and "__pycache__" not in path.parts]
+        files += [path for path in (ROOT / folder).rglob("*")
+                  if path.is_file() and "__pycache__" not in path.parts and path.name != "AGENTS.md"]
     files += [ROOT / "weights/plate_detector.pt"]
     files += [ROOT / "results" / name for name in RESULTS]
     missing = [str(path.relative_to(ROOT)) for path in files if not path.exists()]
