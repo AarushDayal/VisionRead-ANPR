@@ -1,4 +1,4 @@
-# RiskGate explained from the beginning
+# RiskGate: complete faculty explanation in simple words
 
 **A plain-language guide to what we built, how it works, and why.**  
 **Project state checked:** 11 November 2026. For the precise experiment conditions, see the [evaluation report](EVALUATION_REPORT.md).
@@ -24,6 +24,8 @@ ACCEPT, or ask a person to REVIEW and correct it
 ```
 
 There are **two separate processes** to understand. *Building and evaluating* the system happens beforehand, using labeled images. *Using* the system happens when someone uploads a new photo to the demo. Training does not happen every time a photo is uploaded.
+
+**How to use this file:** Read the photo journey in Part 2 first if you are new to the project. Then read Part 1 to learn how the models were prepared. Before the viva, practise the short spoken explanation and the questions near the end. The [evaluation report](EVALUATION_REPORT.md) holds the exact measurements; this file explains what they mean.
 
 ## Part 1: How we built the system
 
@@ -113,6 +115,20 @@ Imagine you upload a photo of a car whose true plate reads `KA03MN1234`. These c
 The **Plate crop** input mode skips detection and sends a supplied crop straight to OCR. This helps demonstrate whether a failure comes from *finding* the plate or *reading* it. It is a diagnostic mode, not the complete vehicle-photo pipeline.
 
 The app also offers a batch view for up to 20 uploads and a CSV export of its decisions. A human correction is saved in a local log. **Saving a correction does not automatically retrain the models**; it records information that could be reviewed and used in a future training cycle.
+
+### What happens when you start the program?
+
+Run the Streamlit command shown in the [README](../README.md). Streamlit opens the local dashboard. The app loads the saved plate detector, chosen OCR reader, and correctness model from files on the laptop. When you select a photo and press **Analyze plate**, the image is decoded into pixels; the detector and reader process those pixels; the decision is calculated; and the dashboard displays the evidence. No cloud API receives the image. Changing the review-policy setting changes the acceptance rule, not the detector or OCR weights.
+
+The dashboard shows several numbers that sound similar but answer different questions:
+
+| Number or check | Everyday meaning | What it cannot prove |
+| --- | --- | --- |
+| **Detector score** | How strongly the detector believes its chosen rectangle contains a plate. | It cannot tell whether the characters were read correctly. |
+| **OCR model score** | How strongly the OCR reader supports the text it produced. | It is not automatically the chance that the complete plate string is right. |
+| **Format result** | Whether the text resembles a familiar Indian plate pattern. | A one-character mistake can still look valid. |
+| **Correctness estimate** | The small trained model's estimate that the *whole* text is right, based on the signals above and crop details. | It is a measured estimate for similar images, not a guarantee for this photo. |
+| **ACCEPT / REVIEW** | The chosen policy's action after applying the estimate and format rule. | ACCEPT is not a certificate of truth; the test still found accepted mistakes. |
 
 ## Why this architecture instead of only calling an LLM API?
 
