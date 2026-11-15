@@ -262,3 +262,137 @@ Choose one example that works and one that fails before the presentation. A fail
 | **Test set** | Images reserved to measure the system after training and threshold choice. |
 
 **If you only remember three things:** finding a plate is different from reading it; a high model score is not proof that the whole text is right; and uncertain readings must go to a person. For exact results and caveats, keep the [evaluation report](EVALUATION_REPORT.md) beside this guide.
+
+## Part 8: PBL research extension — checking whether a reading stays the same
+
+**Added 12 November 2026.** Use the [every-line source companion](CODE_WALKTHROUGH.md) alongside this guide. It contains the actual source and an explanation for every physical Python line, including tests. It explains our code; it does not pretend to explain millions of numbers inside downloaded neural networks.
+
+### A project title you can defend
+
+**RiskGate: An Offline, Uncertainty-Aware Number Plate Recognition System with Explainable Human Review and Image-Stability Testing.**
+
+A useful research question is: *Can simple consistency checks identify unreliable plate readings beyond a calibrated confidence threshold, and what automation do we lose in exchange?* That is specific enough to implement, measure, and discuss. “An AI that reads plates” is a much less precise contribution.
+
+The completed extension adds a fixed image-stability check, an optional veto in live and batch analysis, a visible table of transformed readings, an experiment comparing the policy with and without the veto, and reproducible source documentation. It uses existing installed libraries and the existing OCR model. It does not train another neural network.
+
+### The simplest analogy
+
+Imagine reading a number from a paper. You move the paper slightly closer and turn up the light. If you suddenly read a different number, you should check the paper again. If you read the same number three times, you might still be consistently misreading a damaged digit. That distinction is the entire point of this experiment.
+
+For one detected plate crop, the code keeps the original answer and creates two copies:
+
+1. A copy enlarged to 125% of its width and height using cubic interpolation. Interpolation estimates new pixel values between existing ones; it cannot recover details that were never photographed.
+2. A copy with pixel values multiplied by 1.10. Values above 255 are clipped to 255. This slightly brightens an ordinary 8-bit image. It can also saturate a bright area, so disagreement can be caused by the transformation itself.
+
+The same OCR reader processes both copies. Their text is normalized in exactly the same way as the original answer. Both must produce nonempty, error-free text that exactly matches the original. Matching 9 of 10 characters is still disagreement, because one wrong character can identify another vehicle.
+
+`matching_variants` is a count between zero and two. It is **not a correctness probability**. These are correlated outputs from one model looking at nearly the same pixels. Three identical wrong answers remain possible. We deliberately do not multiply confidence scores or treat these reads as three independent witnesses.
+
+### How acceptance changes
+
+The original policy uses plate format and calibrated confidence. The experiment adds a second condition:
+
+```text
+Final ACCEPT = original policy ACCEPT AND stability check passes
+Otherwise REVIEW
+```
+
+A failure never rewrites the original characters, selects a more attractive answer, or promotes a review into acceptance. The trace retains `base_route`, the route before the veto, and `route`, the route after it. This is an ablation: comparing one system with one component switched off against the same system with that component switched on.
+
+“Only removes acceptance” is a guarantee about program behaviour, not a guarantee about the percentage of accepted answers that are wrong. If the veto removes correct answers and leaves wrong ones, that percentage gets worse. This is why both accepted error and coverage must be measured.
+
+### What the experiment actually found
+
+We ran the fixed check on the existing 12 full-vehicle gallery scenes. The images were already selected for demonstration, so this is a descriptive experiment on known examples. It is not independent validation, a new held-out benchmark, or proof of generalization.
+
+| Measurement | Original policy | With stability veto |
+| --- | --- | --- |
+| Images | 12 | 12 |
+| Exactly correct original OCR readings | 4 | 4 |
+| Automatically accepted | 5 | 4 |
+| Wrong accepted readings | 1 | 1 |
+| Coverage | 41.7% | 33.3% |
+| Error among accepted | 20.0% | 25.0% |
+
+The extra reads took about **21.2 milliseconds per detected crop on this run**. This is added checking time, including constructing variants; it is not the complete detection-plus-OCR latency and is not a hardware-independent speed claim.
+
+The veto removed one correct acceptance and retained the incorrect acceptance. Therefore it **did not improve the observed error rate**. The prototype leaves this experimental feature off by default. The sidebar lets you enable it for demonstration. This is a negative research result with an engineering consequence: a plausible extra check was measured, and the default policy was preserved because the evidence did not support enabling it.
+
+The full record, including every variant reading, is `results/stability_gallery.json`. Run `./venv/bin/python -m scripts.eval_stability` only when this record is absent; the script refuses to replace the first run. No original evaluation results or reviewed labels were overwritten. Future work should freeze a policy using calibration/validation images and test once on newly collected, independently labelled images. Choosing new transformations repeatedly to improve this 12-image result would overfit the gallery.
+
+### How the confidence mathematics works, slowly
+
+The OCR reader produces its own score. FastPlateOCR provides character scores, which our wrapper averages. A high average can hide one bad character. For illustration, even if ten characters each had a genuinely independent 95% chance of being right, the chance all ten were right would be `0.95^10`, about 60%. Real character errors are not independent, and the raw scores are not necessarily probabilities. This calculation explains the distinction; it is not our confidence formula.
+
+Our small correctness model takes six numbers: raw OCR score, format category, text length, crop height, crop width, and number of text boxes. Each feature is standardized: subtract its calibration-set mean and divide by its calibration-set standard deviation. This lets quantities measured on different scales, such as pixels and a 0–1 score, enter the model sensibly.
+
+For each standardized feature, multiply by its learned weight. Add those products and a learned intercept. This total is called a score, `s`. Convert it to a value between zero and one with `1 / (1 + exp(-s))`. This is logistic regression. Positive weights push the estimate up as that feature grows; negative weights push it down, holding the others fixed. The model learns the weights from examples labelled “whole reading correct” or “whole reading wrong.” A format match is evidence, not proof.
+
+The code clips `s` to the interval −700 to 700 before computing the exponential to avoid numerical overflow. The JSON file stores weights, means, scales, feature order, date, and a fingerprint of fitting data. Inference uses this saved recipe rather than learning again for each upload. Logistic regression can still be poorly calibrated on a new camera or different kinds of plates.
+
+Threshold selection then sorts validation readings by estimated correctness. It considers complete groups of tied scores, counts errors in the accepted prefix, and checks a Wilson upper confidence bound against each error target. A Wilson interval accounts for sampling uncertainty better than simply assuming zero observed mistakes means zero risk. For example, zero wrong answers in only five trials is weak evidence. Zero wrong answers in many trials is stronger evidence.
+
+The 1.96 constant gives the usual approximate 95% two-sided Wilson interval for a fixed binomial sample. Searching many thresholds on the same validation set does **not** turn that interval into a simultaneous or distribution-free guarantee. The original script uses it as a threshold-selection heuristic. The full-photo inference crops also differ from the labelled crops used to fit confidence, which can change calibration. Adding a stability veto changes the accepted subset again; the old confidence estimate is not a recalibrated estimate conditional on passing that veto.
+
+### What is ours, what is reused, and what you can say about originality
+
+Existing components include YOLO, EasyOCR, FastPlateOCR, logistic regression, format checks, and the broader idea of selective prediction. Existing research already studies rejecting uncertain predictions: see [Selective Classification for Deep Neural Networks, 2017](https://proceedings.neurips.cc/paper_files/paper/2017/hash/4a8423d5e91fda00bb7e46540e2b0cf1-Abstract.html) and [SelectiveNet, 2019](https://proceedings.mlr.press/v97/geifman19a.html). RiskGate does not implement SelectiveNet's jointly trained architecture. Image transformations for scene-text recognition also predate this project; [STRAug, 2021](https://openaccess.thecvf.com/content/ICCV2021W/ILDAV/html/Atienza_Data_Augmentation_for_Scene_Text_Recognition_ICCVW_2021_paper.html) is a training augmentation paper, not evidence that our particular inference veto works.
+
+The concrete student-project contribution is integrating an offline full-photo pipeline, grouped data preparation, detector adaptation, reader comparison, whole-string correctness estimation, explicit review routing, visible evidence, local corrections, and a measured optional stability extension. That is substantial engineering and an experimental study. It does not establish a new algorithm or patentability. No patent search or legal novelty assessment has been completed. Do not put “patented,” “patent pending,” “first ever,” or “guaranteed safe” on the submission.
+
+If asked for an invention direction, describe it as a **proposal for further investigation**: camera-specific acceptance control combining measured correctness, reading stability, and human review evidence. To make that direction credible, you would need fresh camera data, comparisons against confidence-only baselines, careful investigation of existing work, and evidence that a specific technical change helps. Those are future tasks, not completed results.
+
+### A two-minute faculty pitch
+
+“My project is RiskGate, an offline number plate recognition and review system. It finds a plate in a vehicle image, reads the characters, and estimates whether the complete answer is correct. The important problem is that a readable-looking plate can still contain one wrong character. So I measure both how many cases the system automates and how many automated readings are wrong.
+
+“I adapted a YOLO detector, compared local OCR readers, fitted a small correctness model, and selected review thresholds on separate validation data. The detector matches 248 out of 254 labelled boxes, but the complete pipeline reads only 71 plates exactly. The bottleneck is reading, and I show that limitation explicitly.
+
+“I also implemented an image-stability experiment: enlarge and brighten the crop slightly, read again, and send disagreements to review. On 12 existing demo scenes it removed a correct acceptance while retaining a wrong one. So it remains optional. This showed why extra AI checks need measurement rather than an assumption that more checks must improve accuracy.
+
+“The result is a reproducible prototype with visible evidence and human correction. The next research step is curated Indian-only labels and stronger OCR, followed by evaluation on a fresh camera dataset.”
+
+### Viva questions about this extension
+
+**Why did you keep an experiment that did not help?** It answers a concrete question, has a reproducible result, and shows why the default was left unchanged. An unsuccessful hypothesis is still a useful result when the method and conclusion are accurate.
+
+**Is this three different AI models voting?** No. One model reads three related images. The outputs are correlated.
+
+**Does agreement increase confidence to 100%?** No. The stability count is separate from the saved correctness estimate. A stable wrong reading is possible and occurred in the gallery.
+
+**Why not just correct O to 0?** Changing characters can invent a plausible but wrong registration. The app normalizes case and removes separators; it does not silently substitute ambiguous characters. The separate crop-level grammar experiment below tests position-aware substitutions without enabling them in the app.
+
+**Can your system verify that the plate belongs to that car?** No. There is no registration-database lookup or identity verification. Recognition is different from authorization.
+
+**Does saving a correction teach the AI immediately?** No. It writes a local CSV record containing a timestamp, image fingerprint, original suggestion, and correction. Retraining requires a separate, reviewed procedure. Hashing an image identifies identical bytes; it is not encryption or a guarantee of anonymity.
+
+**Why not promise a 2% error rate?** The strict policy currently accepts nothing, and the 10% validation-target policy misses that target on the recorded full-photo test. A target is a selection setting, not a deployment guarantee.
+
+### Demonstration order and remaining non-Python files
+
+Start with `./venv/bin/streamlit run app/streamlit_app.py`. Choose a gallery photo in full-photo mode, click Analyze, and identify the box, crop, text, correctness estimate, and decision. Explain the distinction between detector score and whole-answer confidence. Enable the experimental sidebar checkbox and click Analyze again; changing the checkbox alone does not recompute a previously displayed result. Show the original and transformed readings. Open Measured evidence and the ablation panel. Finally demonstrate a correction and batch CSV export. Show difficult examples as well as easy ones.
+
+`README.md` is the entry point and command reference. `requirements.txt` lists Python packages; it currently has no version pins, so installing later can produce a different environment. `Makefile` gives `make check` its test command. `.gitignore` excludes local environments, bulky/private data, generated results, model weights, and the submission ZIP from ordinary Git tracking. `.streamlit/config.toml` chooses demo colors and a 12 MB per-file upload limit. `presentation/presentation.html` contains slide content, CSS appearance, and a small JavaScript arrow-key navigator; the PDF is its printable export. `docs/DATA_NOTES.md` describes dataset provenance. `docs/EVALUATION_REPORT.md` contains the original measurements and this extension's summary. `docs/CHAT_HANDOFF.md` preserves earlier project context and is historical. `docs/AGENTS.md` gives editing instructions to coding assistants, not instructions executed by the app.
+
+`data/` holds source images, labels, split manifests, and gallery assets. `weights/` holds the detector, OCR network, and calibration parameters. These binary weights are learned numerical arrays, not handwritten Python source. `results/` contains CSV predictions, JSON measurements, plots, and the local correction log. `RiskGate_Submission.zip` is a generated portable snapshot, not an additional implementation. The every-line companion covers all first-party Python files and tests; external dependencies, data rows, model tensors, and generated binary artifacts are explained by role rather than pretending that each byte is a source-code line.
+
+## Submission freeze: exploratory grammar results
+
+**15 November 2026.** The [Exploratory: grammar + conservative threshold](EVALUATION_REPORT.md#exploratory-grammar--conservative-threshold) experiment is **crop-level only**: it reuses cached FastPlateOCR readings, not the full-photo detector pipeline. **The test set was already viewed**, so this is an exploratory repeated test, not a blinded result. **Grammar correction is NOT enabled in the app by default**; it remains in a separate evaluation script. The app, saved confidence model, thresholds, and earlier measurements are unchanged.
+
+The correction uses positions in strings of length 9–11: two state letters, two district digits, one to three series letters, and four final digits. It substitutes only O/0, I/1, B/8, S/5 and Z/2 according to those positions. It does not cover every Indian format or check whether a state code exists. Two correctness calibrators were fitted on 339 calibration readings, with corrected correctness labels for the grammar variant and unchanged cached features. Thresholds were selected on 255 validation readings and frozen before evaluating the 254 test readings.
+
+| Crop-test variant | Exact plates | Mean CER | 10% target: coverage | 10% target: accepted errors; Wilson 95% interval |
+| --- | --- | ---: | --- | --- |
+| Baseline, Wilson selection | 71/254 (28.0%) | 0.2210 | 72/254 (28.3%) | 9/72 (12.5%); 6.7–22.1% |
+| Grammar, Wilson selection | 90/254 (35.4%) | 0.2148 | 97/254 (38.2%) | 15/97 (15.5%); 9.6–24.0% |
+| Baseline, Clopper–Pearson selection | 71/254 (28.0%) | 0.2210 | 72/254 (28.3%) | 9/72 (12.5%); 6.7–22.1% |
+| Grammar, Clopper–Pearson selection | 90/254 (35.4%) | 0.2148 | 97/254 (38.2%) | 15/97 (15.5%); 9.6–24.0% |
+
+Grammar improved exact match and mean character error rate, but **10% target accepted error rose 12.5% → 15.5%** as more readings were accepted. At 2%, all four variants accepted nothing. At 5%, both baseline variants accepted nothing, while both grammar variants accepted 42/254 (16.5%) with zero errors; their Wilson interval was 0–8.4%, so this does not establish error below 5%. With no acceptances the error rate is undefined and the recorded interval is the uninformative [0, 1]. Full evidence is in `results/grammar_eval.json`, included in the submission ZIP.
+
+**Viva: Why is grammar not the default?** It improved crop-level text accuracy, but the 10% policy's accepted error worsened from 12.5% to 15.5%. It also assumes a restricted plate layout, and the experiment reused an already-viewed test. We have no fresh full-image evidence supporting a default change, so the app keeps its original readings and policy.
+
+**Viva: Why did Clopper–Pearson change nothing?** We replaced the Wilson threshold-selection bound with the upper endpoint of the two-sided 95% exact Clopper–Pearson interval. On these validation readings, both bounds qualified the same lowest confidence cutoffs at all three targets. The bounds differ numerically, but no cutoff decision changed, so the accepted test sets stayed identical. Exact binomial intervals do not fix OCR errors or provide a guarantee after searching thresholds, especially with correlated video frames.
+
+The submission is frozen after packaging and verification. No new features are planned for this submission.

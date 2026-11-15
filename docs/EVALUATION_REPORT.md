@@ -75,3 +75,26 @@ Awiros was assessed as an optional reader. Its [model card](https://huggingface.
 - `results/audit_sample.csv`, `results/audit_issues.csv`, and `results/audit_*.jpg`: sampled label inspection.
 
 These generated files and all source imagery remain local. The dataset's Kaggle metadata indicates CC BY-NC-ND 4.0; do not publish the source images, crops, or trained weights without checking the relevant terms.
+
+## 12 November extension: optional image-stability veto
+
+Two fixed transformations (1.25× cubic resize and 1.10× pixel brightness) are read by the same selected FastPlateOCR model. Both must match the original normalized text without an engine error. The veto only demotes ACCEPT to REVIEW and does not change OCR characters or recalibrate confidence.
+
+On the 12 previously selected gallery scenes, the original policy accepted 5 with 1 error (41.7% coverage, 20% accepted error). The veto accepted 4 with 1 error (33.3% coverage, 25% accepted error). It removed a correct acceptance. Exact original OCR remained 4/12. Mean added check time was 21.2 ms on this run. The extension did not improve observed accepted error and is off by default. This is a descriptive gallery ablation, not a held-out benchmark. Original 254-image measurements above are unchanged. Full per-image evidence: `results/stability_gallery.json`; reproduction: `python -m scripts.eval_stability` (refuses overwriting the first record).
+
+## Exploratory: grammar + conservative threshold
+
+13 November 2026: **the test set was already viewed earlier, so this is an exploratory repeated test, not blinded.** This ablation uses the existing selected FastPlateOCR crop predictions, without rerunning OCR or evaluating the full-image detector. Lengths 9–11 define two state letters, two district digits, one to three series letters, and four final digits. Only O/0, I/1, B/8, S/5 and Z/2 are corrected according to their slots; other characters and lengths are preserved. It does not validate state codes or handle every Indian plate format.
+
+Two logistic calibrators were refitted on the **339 calibration predictions only**, using original or corrected text for correctness labels. Cached input features remain unchanged. All thresholds were selected on the **255 validation predictions only**, then frozen before one evaluation pass over the **254 test predictions** for each text variant. Baseline and grammar-only retain the existing Wilson selection rule. The conservative variants use the upper endpoint of the **two-sided 95% Clopper–Pearson interval**, `Beta.ppf(0.975, errors + 1, accepted - errors)`. Both rules choose the lowest confidence cutoff satisfying the target, keeping tied scores together; if none qualifies, nothing is accepted. These pointwise binomial bounds do not guarantee risk after threshold search or account for correlated video frames.
+
+| Test variant | Exact plates | Mean CER | 5% target: accepted / coverage | 5% target: errors / accepted; Wilson 95% interval | 10% target: accepted / coverage | 10% target: errors / accepted; Wilson 95% interval |
+| --- | ---: | ---: | --- | --- | --- | --- |
+| Baseline (Wilson) | 71/254 (28.0%) | 0.2210 | 0 / 0% | 0/0; undefined rate | 72 / 28.3% | 9/72 (12.5%); 6.7–22.1% |
+| Grammar only (Wilson) | 90/254 (35.4%) | 0.2148 | 42 / 16.5% | 0/42 (0%); 0–8.4% | 97 / 38.2% | 15/97 (15.5%); 9.6–24.0% |
+| Baseline + Clopper–Pearson | 71/254 (28.0%) | 0.2210 | 0 / 0% | 0/0; undefined rate | 72 / 28.3% | 9/72 (12.5%); 6.7–22.1% |
+| Grammar + Clopper–Pearson | 90/254 (35.4%) | 0.2148 | 42 / 16.5% | 0/42 (0%); 0–8.4% | 97 / 38.2% | 15/97 (15.5%); 9.6–24.0% |
+
+At the **2% target**, every variant accepted 0/254 (0% coverage, zero accepted errors, undefined error rate). With no acceptances the JSON records the uninformative Wilson interval [0, 1]. Clopper–Pearson selected exactly the same cutoffs as Wilson here; it produced no measured improvement. Grammar improved exact match and mean CER, but the 10% target's accepted error **worsened** and still exceeded the target. At 5%, zero observed errors among 42 accepted plates does not establish error below 5%, given the 8.4% Wilson upper endpoint. App defaults and all earlier measurements remain unchanged.
+
+Reproduce with `./venv/bin/python -m scripts.eval_grammar`; it refuses to overwrite `results/grammar_eval.json`. That new local, Git-ignored artifact contains input hash, fitted calibrators, frozen thresholds, validation and test metrics for all four variants. Existing calibration weights and protected evaluation files are not overwritten.

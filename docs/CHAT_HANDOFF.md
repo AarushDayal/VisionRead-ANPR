@@ -1,8 +1,8 @@
 # RiskGate handoff for a new chat
 
-**Updated:** 12 November 2026  
+**Updated:** 15 November 2026
 **Project:** `/home/aarush/Aarush/Projects/riskgate`  
-**Git branch:** `main`; working tree was clean before this handoff file.  
+**Git branch:** `main`; submission freeze records the completed work under tag `submission-final`.
 **College PBL submission deadline:** 16 November 2026.
 
 ## User's goal and constraints
@@ -40,7 +40,7 @@ The app is [app/streamlit_app.py](../app/streamlit_app.py). Core logic is under 
 - Replaced the earlier close-up demo gallery with 12 original full vehicle/street images. Gallery crops are created in memory. Fixed a Streamlit stale-cache bug that caused a `FileNotFoundError` for deleted old gallery photos; the manifest reader is now uncached.
 - Organized the repo, then removed obsolete prototype scripts, unused Gemini experiment/cascade code, duplicate plans, and old tests tied only to removed code. Retained data, trained weights, measured results, and scripts needed to reproduce or audit the final pipeline. The tracked repo went from 60 to 42 files. The current submission ZIP has 59 files.
 - Consolidated the explanation into one file, `docs/FACULTY_EXPLANATION.md` (about 4,500 words). It includes a file map and a simple industry/research comparison. Keep future explanatory additions there rather than creating more overlapping guides.
-- Latest completed commit before this file: `3b0c9a8` (`Consolidate faculty explanation into one guide`). No other task was pending at handoff.
+- Latest completed commit before this file: `3b0c9a8` (`Consolidate faculty explanation into one guide`). This describes the earlier handoff; the submission freeze update is below.
 
 ## Commands and verification
 
@@ -52,7 +52,7 @@ make check
 ./venv/bin/python -m scripts.package_submission
 ```
 
-At the last check, `make check` passed **20 tests**, including a gallery-photo app smoke test. The rebuilt ZIP was extracted to a clean temporary directory and the bundled app analyzed `RJ27TC0530` successfully. Refresh the ZIP after any code or documentation changes that should be submitted. `docs/AGENTS.md` contains local project work rules: test after changes, never commit datasets/crops/keys, and never edit reviewed labels.
+At the earlier handoff check, `make check` passed **20 tests**, including a gallery-photo app smoke test. The rebuilt ZIP was extracted to a clean temporary directory and the bundled app analyzed `RJ27TC0530` successfully. Refresh the ZIP after any code or documentation changes that should be submitted. `docs/AGENTS.md` contains local project work rules: test after changes, never commit datasets/crops/keys, and never edit reviewed labels.
 
 ## Practical cautions for the next assistant
 
@@ -61,3 +61,24 @@ At the last check, `make check` passed **20 tests**, including a gallery-photo a
 - The source gallery photos are copied unmodified from a dataset whose Kaggle metadata says CC BY-NC-ND 4.0. The ZIP is intended for noncommercial academic presentation with attribution; check source terms before wider distribution.
 - No paid API key is required. The final app makes no Gemini calls. An optional vision-language second opinion is future work, not a current feature.
 - The user's next request should determine the next work. Avoid inventing new features close to the deadline; prioritise reliability, clarity, and truthful presentation.
+
+## Submission freeze: exploratory grammar results
+
+**15 November 2026.** The [Exploratory: grammar + conservative threshold](EVALUATION_REPORT.md#exploratory-grammar--conservative-threshold) experiment is **crop-level only**: it reuses cached FastPlateOCR readings, not the full-photo detector pipeline. **The test set was already viewed**, so this is an exploratory repeated test, not a blinded result. **Grammar correction is NOT enabled in the app by default**; it remains in a separate evaluation script. The app, saved confidence model, thresholds, and earlier measurements are unchanged.
+
+The correction uses positions in strings of length 9–11: two state letters, two district digits, one to three series letters, and four final digits. It substitutes only O/0, I/1, B/8, S/5 and Z/2 according to those positions. It does not cover every Indian format or check whether a state code exists. Two correctness calibrators were fitted on 339 calibration readings, with corrected correctness labels for the grammar variant and unchanged cached features. Thresholds were selected on 255 validation readings and frozen before evaluating the 254 test readings.
+
+| Crop-test variant | Exact plates | Mean CER | 10% target: coverage | 10% target: accepted errors; Wilson 95% interval |
+| --- | --- | ---: | --- | --- |
+| Baseline, Wilson selection | 71/254 (28.0%) | 0.2210 | 72/254 (28.3%) | 9/72 (12.5%); 6.7–22.1% |
+| Grammar, Wilson selection | 90/254 (35.4%) | 0.2148 | 97/254 (38.2%) | 15/97 (15.5%); 9.6–24.0% |
+| Baseline, Clopper–Pearson selection | 71/254 (28.0%) | 0.2210 | 72/254 (28.3%) | 9/72 (12.5%); 6.7–22.1% |
+| Grammar, Clopper–Pearson selection | 90/254 (35.4%) | 0.2148 | 97/254 (38.2%) | 15/97 (15.5%); 9.6–24.0% |
+
+Grammar improved exact match and mean character error rate, but **10% target accepted error rose 12.5% → 15.5%** as more readings were accepted. At 2%, all four variants accepted nothing. At 5%, both baseline variants accepted nothing, while both grammar variants accepted 42/254 (16.5%) with zero errors; their Wilson interval was 0–8.4%, so this does not establish error below 5%. With no acceptances the error rate is undefined and the recorded interval is the uninformative [0, 1]. Full evidence is in `results/grammar_eval.json`, included in the submission ZIP.
+
+**Viva: Why is grammar not the default?** It improved crop-level text accuracy, but the 10% policy's accepted error worsened from 12.5% to 15.5%. It also assumes a restricted plate layout, and the experiment reused an already-viewed test. We have no fresh full-image evidence supporting a default change, so the app keeps its original readings and policy.
+
+**Viva: Why did Clopper–Pearson change nothing?** We replaced the Wilson threshold-selection bound with the upper endpoint of the two-sided 95% exact Clopper–Pearson interval. On these validation readings, both bounds qualified the same lowest confidence cutoffs at all three targets. The bounds differ numerically, but no cutoff decision changed, so the accepted test sets stayed identical. Exact binomial intervals do not fix OCR errors or provide a guarantee after searching thresholds, especially with correlated video frames.
+
+The submission is frozen after packaging and verification. No new features are planned for this submission.

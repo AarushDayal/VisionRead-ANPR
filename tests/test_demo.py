@@ -20,3 +20,12 @@ def test_gallery_photo_runs_without_error() -> None:
     app.button[0].click().run()
     assert not app.exception
     assert app.session_state["analysis"]["text"] == "RJ27TC0530"
+
+    assert app.session_state["analysis"]["stability"] is None
+    app.checkbox[0].check().run()
+    app.button[0].click().run()
+    assert not app.exception
+    result = app.session_state["analysis"]
+    assert result["stability"]["variant_count"] == 2
+    assert len(result["stability"]["readings"]) == 2
+    assert result["route"] in (result["base_route"], "REVIEW")

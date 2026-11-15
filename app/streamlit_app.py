@@ -23,6 +23,7 @@ from riskgate.features import plate_features
 from riskgate.grammar import classify
 from riskgate.metrics import normalize
 from riskgate.router import route
+from riskgate.stability import apply_veto, check_stability
 
 st.set_page_config(page_title="RiskGate • ANPR Lab", page_icon="◈", layout="wide")
 
@@ -106,7 +107,7 @@ def demo_examples() -> dict[str, dict]:
 
 
 def analyze(image: np.ndarray, full_image: bool, model: dict | None,
-            reader_name: str, target: str = "0.10") -> dict:
+            reader_name: str, target: str = "0.10", stability_enabled: bool = False) -> dict:
     marked = image.copy()
     crop = image
     detection = None
@@ -137,7 +138,14 @@ def analyze(image: np.ndarray, full_image: bool, model: dict | None,
         decision = "ACCEPT" if initial == "ACCEPT" else "REVIEW"
         reason = f"Confidence passed the threshold chosen for the {float(target):.0%} validation target" if initial == "ACCEPT" else (
             "Eligible for an optional second opinion; review offline" if initial == "ESCALATE" else "Low confidence or invalid format")
-    return {"marked": marked, "crop": crop, "text": text, "confidence": calibrated,
+    base_decision = decision
+    stability = check_stability(crop, text, reader(reader_name).read) if stability_enabled else None
+    if stability:
+        decision = apply_veto(decision, stability)
+        if decision != base_decision:
+            reason = "Automatic acceptance vetoed: OCR changed under a mild image transformation"
+    return {"base_route": base_decision, "stability": stability,
+            "marked": marked, "crop": crop, "text": text, "confidence": calibrated,
             "raw_confidence": read.raw_conf, "route": decision, "reason": reason,
             "detection": detection, "latency_ms": read.latency_ms,
             "grammar": classify(text), "error": read.error}
@@ -173,6 +181,8 @@ st.sidebar.caption("Local inference · No API calls")
 policy_target = st.sidebar.selectbox("Review policy", ["0.10", "0.05", "0.02"],
                                      format_func=lambda value: f"{float(value):.0%} validation target")
 st.sidebar.caption("A target guides threshold choice. It does not guarantee that error rate on new images.")
+stability_enabled = st.sidebar.checkbox("Experimental stability check", value=False)
+st.sidebar.caption("Two extra OCR reads. Disagreement forces review; agreement does not prove correctness.")
 st.sidebar.divider()
 st.sidebar.write("**Active components**")
 st.sidebar.write(f"Detector: {'ready' if detector_path.exists() else 'unavailable'}")
@@ -237,7 +247,7 @@ with demo_tab:
                 st.error("Could not decode this image.")
             else:
                 st.session_state["analysis"] = analyze(image, mode == "Full vehicle photo", calibration,
-                                                        reader_name, policy_target)
+                                                        reader_name, policy_target, stability_enabled)
                 st.session_state["source_bytes"] = image_bytes
                 st.session_state["example_truth"] = example_truth
         if "analysis" in st.session_state:
@@ -267,6 +277,11 @@ with demo_tab:
             style = "" if result["route"] == "ACCEPT" else " review"
             st.markdown(f"<div class='decision{style}'><strong>{result['route']}</strong> · {escape(result['reason'])}<br><span class='small-muted'>Format: {escape(result['grammar'])}" +
                         (f" · Detector score: {result['detection']:.1%}" if result["detection"] is not None else "") + "</span></div>", unsafe_allow_html=True)
+            if result.get("stability"):
+                evidence = result["stability"]
+                st.write(f"Stability: {evidence['matching_variants']}/2 variants agree · base route: {result['base_route']}")
+                st.dataframe(evidence["readings"], hide_index=True)
+                st.caption(f"Extra check time: {evidence['extra_latency_ms']:.0f} ms. These are correlated reads from the same model, not independent votes.")
             with st.expander("Human correction"):
                 with st.form("correction_form"):
                     corrected = st.text_input("Correct plate text", value=result["text"])
@@ -289,9 +304,11 @@ with batch_tab:
         for index, uploaded in enumerate(uploads, 1):
             image = cv2.imdecode(np.frombuffer(uploaded.getvalue(), np.uint8), cv2.IMREAD_COLOR)
             result = analyze(image, batch_mode == "Full vehicle photos", calibration,
-                             reader_name, policy_target) if image is not None else {"error": "Invalid image"}
+                             reader_name, policy_target, stability_enabled) if image is not None else {"error": "Invalid image"}
             records.append({"file": uploaded.name, "plate": result.get("text", ""),
                             "decision": result.get("route", "REVIEW"),
+                            "base_decision": result.get("base_route", "REVIEW"),
+                            "stable": result["stability"]["stable"] if result.get("stability") else "disabled",
                             "correctness_estimate": round(result["confidence"], 3) if result.get("confidence") is not None else "",
                             "reason": result.get("reason", result.get("error", ""))})
             progress.progress(index / len(uploads))
@@ -311,6 +328,14 @@ with batch_tab:
                          width="stretch", hide_index=True)
 
 with evidence_tab:
+    stability_report = config.RESULTS_DIR / "stability_gallery.json"
+    if stability_report.exists():
+        experiment = json.loads(stability_report.read_text())
+        with st.expander("New research experiment: stability veto ablation"):
+            st.caption(experiment["scope"])
+            st.dataframe([{"policy": key, **value} for key, value in experiment["policies"].items()], hide_index=True)
+            st.warning("This gallery experiment removed one correct acceptance and retained the wrong acceptance. It did not improve observed error. The check remains optional and is off by default.")
+            st.caption(f"Mean extra processing time: {experiment['mean_extra_latency_ms']:.1f} ms on this run.")
     st.subheader("What the held-out evaluation actually showed")
     st.caption("A 10% target was chosen on validation data. The final-test error can exceed that target; the interval shows uncertainty.")
     if final:
