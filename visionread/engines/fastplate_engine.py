@@ -5,8 +5,8 @@ import time
 import numpy as np
 from fast_plate_ocr import LicensePlateRecognizer
 
-from riskgate import config
-from riskgate.contracts import EngineResult
+from visionread import config
+from visionread.contracts import EngineResult
 
 
 class FastPlateEngine:

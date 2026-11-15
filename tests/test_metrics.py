@@ -1,4 +1,4 @@
-from riskgate.metrics import normalize
+from visionread.metrics import normalize
 
 
 def test_normalize() -> None:

@@ -1,4 +1,4 @@
-from riskgate.grammar import classify
+from visionread.grammar import classify
 
 # 10 valid (hand-checked against the two formats)
 VALID = [

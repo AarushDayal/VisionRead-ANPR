@@ -3,12 +3,12 @@
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from riskgate import config
+from visionread import config
 
 ROOT = config.ROOT
-OUTPUT = ROOT / "RiskGate_Submission.zip"
+OUTPUT = ROOT / "VisionRead_ANPR_Submission.zip"
 SINGLE = ["README.md", "requirements.txt", "requirements-dev.txt", "Makefile", "weights/calibration.json", ".streamlit/config.toml"]
-FOLDERS = ["app", "riskgate", "scripts", "docs", "presentation", "weights/fastplate", "data/sample_gallery", "tests"]
+FOLDERS = ["app", "visionread", "scripts", "docs", "presentation", "weights/fastplate", "data/sample_gallery", "tests"]
 RESULTS = ["grammar_eval.json", "stability_gallery.json", "selected_reader.json", "final_test.json", "end_to_end_test.json",
            "end_to_end_extra.json", "detector_test.json", "detector_comparison.json",
            "baseline_v2_summary.txt", "risk_coverage.png", "reliability.png", "audit_issues.csv"]

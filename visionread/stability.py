@@ -6,8 +6,8 @@ from time import perf_counter
 import cv2
 import numpy as np
 
-from riskgate.contracts import EngineResult
-from riskgate.metrics import normalize
+from visionread.contracts import EngineResult
+from visionread.metrics import normalize
 
 
 def check_stability(crop: np.ndarray, original: str,

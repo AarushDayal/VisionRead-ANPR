@@ -1,7 +1,7 @@
 import numpy as np
 
-from riskgate.contracts import EngineResult
-from riskgate.stability import apply_veto, check_stability
+from visionread.contracts import EngineResult
+from visionread.stability import apply_veto, check_stability
 
 
 def test_stability_veto_and_failure():

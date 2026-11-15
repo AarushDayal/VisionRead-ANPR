@@ -15,16 +15,16 @@ import cv2
 import numpy as np
 import streamlit as st
 
-from riskgate import config
-from riskgate.calibration import load, predict
-from riskgate.engines.fastplate_engine import FastPlateEngine
-from riskgate.features import plate_features
-from riskgate.grammar import classify
-from riskgate.metrics import normalize
-from riskgate.router import route
-from riskgate.stability import apply_veto, check_stability
+from visionread import config
+from visionread.calibration import load, predict
+from visionread.engines.fastplate_engine import FastPlateEngine
+from visionread.features import plate_features
+from visionread.grammar import classify
+from visionread.metrics import normalize
+from visionread.router import route
+from visionread.stability import apply_veto, check_stability
 
-st.set_page_config(page_title="RiskGate • ANPR Lab", page_icon="◈", layout="wide")
+st.set_page_config(page_title="VisionRead ANPR • Lab", page_icon="◈", layout="wide")
 
 CSS = """
 <style>
@@ -158,7 +158,7 @@ if not end_path.exists():
     end_path = config.RESULTS_DIR / "end_to_end_test.json"
 end = json.loads(end_path.read_text()) if end_path.exists() else None
 
-st.sidebar.markdown("### RISK<span style='color:#5fe6ca'>GATE</span> / Console", unsafe_allow_html=True)
+st.sidebar.markdown("### Vision<span style='color:#5fe6ca'>Read</span> ANPR / Console", unsafe_allow_html=True)
 st.sidebar.caption("Local inference · No API calls")
 policy_target = st.sidebar.selectbox("Review policy", ["0.10", "0.05", "0.02"],
                                      format_func=lambda value: f"{float(value):.0%} validation target")
@@ -174,7 +174,7 @@ st.sidebar.caption("Inputs and corrections stay on this machine.")
 
 st.markdown("""<div class="hero"><span class="chip">OFFLINE • INDIAN ANPR RESEARCH</span>
 <div class="eyebrow">Computer vision / selective prediction</div>
-<h1>RISK<span style="color:#5ff0d2">GATE</span><span style="font-weight:400;color:#92adba"> / ANPR</span></h1>
+<h1>Vision<span style="color:#5ff0d2">Read</span><span style="font-weight:400;color:#92adba"> ANPR</span></h1>
 <p>Read the plate. Measure uncertainty. Route the difficult cases to a human. Every decision is visible, and every result is tied to a real test.</p></div>""", unsafe_allow_html=True)
 
 top = st.columns(4, gap="medium")
@@ -302,7 +302,7 @@ with batch_tab:
         writer = csv.DictWriter(output, fieldnames=list(records[0]))
         writer.writeheader()
         writer.writerows(records)
-        st.download_button("Export decisions as CSV", output.getvalue(), "riskgate_decisions.csv", "text/csv")
+        st.download_button("Export decisions as CSV", output.getvalue(), "visionread_anpr_decisions.csv", "text/csv")
     correction_path = config.RESULTS_DIR / "review_corrections.csv"
     if correction_path.exists():
         with st.expander("Local correction log"):
@@ -379,4 +379,4 @@ This is an academic prototype. Glare, motion blur, tiny crops, uncommon layouts,
 """)
     st.markdown("**Research basis:** [BLPR](https://arxiv.org/abs/2604.09927) · [Neural Sentinel](https://arxiv.org/abs/2602.07051) · [Nigerian VLM evaluation](https://arxiv.org/abs/2607.02025) · [VehiclePaliGemma](https://arxiv.org/abs/2412.14197) · [ICPR low-resolution competition](https://arxiv.org/abs/2604.22506) · [Indian LPR dataset](https://arxiv.org/abs/2111.06054)")
 
-st.markdown("<div class='foot'>RISK<span style='color:#5fe6ca'>GATE</span> / ANPR LAB · Local inference · Measured uncertainty · Human review</div>", unsafe_allow_html=True)
+st.markdown("<div class='foot'>Vision<span style='color:#5fe6ca'>Read</span> ANPR / LAB · Local inference · Measured uncertainty · Human review</div>", unsafe_allow_html=True)

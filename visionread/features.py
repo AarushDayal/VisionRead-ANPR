@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from riskgate.contracts import EngineResult
-from riskgate.grammar import classify
+from visionread.contracts import EngineResult
+from visionread.grammar import classify
 
 
 def plate_features(crop: np.ndarray, result: EngineResult) -> dict[str, float]:

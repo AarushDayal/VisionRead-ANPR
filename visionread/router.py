@@ -1,6 +1,6 @@
 """Apply the saved validation thresholds without refitting them."""
 
-from riskgate.grammar import classify
+from visionread.grammar import classify
 
 
 def route(text: str, confidence: float, thresholds: dict) -> str:

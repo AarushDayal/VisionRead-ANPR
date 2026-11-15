@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from riskgate.calibration import load, predict
-from riskgate.router import route
+from visionread.calibration import load, predict
+from visionread.router import route
 
 
 def test_saved_calibrator(tmp_path) -> None:

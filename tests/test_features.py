@@ -1,7 +1,7 @@
 import numpy as np
 
-from riskgate.contracts import EngineResult
-from riskgate.features import plate_features
+from visionread.contracts import EngineResult
+from visionread.features import plate_features
 
 
 def test_features():

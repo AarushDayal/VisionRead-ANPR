@@ -1,13 +1,13 @@
-# RiskGate: complete faculty explanation in simple words
+# VisionRead ANPR: complete faculty explanation in simple words
 
 **A plain-language guide to what we built, how it works, and why.**  
-**Runtime edition:** 16 November 2026. The full research source is preserved under the [`submission-final` tag](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final). Historical experiments below describe that archived version. For the precise experiment conditions, see the [evaluation report](EVALUATION_REPORT.md).
+**Runtime edition:** 16 November 2026. The full research source is preserved under the [`submission-final` tag](https://github.com/AarushDayal/VisionRead-ANPR/tree/submission-final). Historical experiments below describe that archived version. For the precise experiment conditions, see the [evaluation report](EVALUATION_REPORT.md).
 
 ## The whole project in one minute
 
-RiskGate takes a photo of a vehicle and tries to read its number plate. It then decides whether to **accept the reading automatically** or **ask a person to check it**. ANPR stands for *Automatic Number Plate Recognition*. OCR stands for *optical character recognition*: reading letters and numbers from an image.
+VisionRead ANPR takes a photo of a vehicle and tries to read its number plate. It then decides whether to **accept the reading automatically** or **ask a person to check it**. ANPR stands for *Automatic Number Plate Recognition*. OCR stands for *optical character recognition*: reading letters and numbers from an image.
 
-The key idea is simple: a computer can give a convincing-looking answer that is wrong by just one character. RiskGate therefore shows the evidence behind its answer and sends uncertain cases for review.
+The key idea is simple: a computer can give a convincing-looking answer that is wrong by just one character. VisionRead ANPR therefore shows the evidence behind its answer and sends uncertain cases for review.
 
 ```text
 Vehicle photo
@@ -99,7 +99,7 @@ The 12 photos in the demo gallery are full vehicle or street scenes for showing 
 | Acceptance thresholds | Chosen on 255 separate validation predictions. A threshold is a decision rule, not another neural network. |
 | 254-image test | Used to report the results. Later detector changes were checked against this already-viewed test, so the updated comparison is exploratory. |
 
-To reproduce the historical experiments, use the source under the [`submission-final` tag](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final). In that version, the main scripts are `prepare_indian → detector prepare/train → baseline_v2 → eval_router → eval_end_to_end → plot_results`. The second detector source is imported before the extra training stage. The demo simply **loads** the saved detector, OCR reader, and correctness model; it does not train them when you click Analyze.
+To reproduce the historical experiments, use the source under the [`submission-final` tag](https://github.com/AarushDayal/VisionRead-ANPR/tree/submission-final). In that version, the main scripts are `prepare_indian → detector prepare/train → baseline_v2 → eval_router → eval_end_to_end → plot_results`. The second detector source is imported before the extra training stage. The demo simply **loads** the saved detector, OCR reader, and correctness model; it does not train them when you click Analyze.
 
 ## Part 2: What happens to one photo in the demo
 
@@ -134,9 +134,9 @@ The dashboard shows several numbers that sound similar but answer different ques
 
 Your original prototype sent a photo to Gemini and displayed its answer. That was useful as a first demonstration: it proved that an AI system could sometimes read a plate. It did not establish how often the answer was exactly right, whether a plausible answer could be trusted, or how the demo would work without an API key or internet connection.
 
-RiskGate separates the task into visible jobs. We can measure **plate location**, **character reading**, and **accept/review behavior** independently. The complete pipeline runs locally, so the main demo does not depend on paid API access or sending a vehicle photo to an external service.
+VisionRead ANPR separates the task into visible jobs. We can measure **plate location**, **character reading**, and **accept/review behavior** independently. The complete pipeline runs locally, so the main demo does not depend on paid API access or sending a vehicle photo to an external service.
 
-An image-capable LLM could be added as an **optional second opinion** for difficult cases. That would produce another possible reading; it would not automatically tell us which reading is correct. If two readers disagree, a person still needs to check. An API could also add network delay, quota or cost limits, and data-sharing considerations. RiskGate currently uses **human review**, not an LLM API, for uncertain cases.
+An image-capable LLM could be added as an **optional second opinion** for difficult cases. That would produce another possible reading; it would not automatically tell us which reading is correct. If two readers disagree, a person still needs to check. An API could also add network delay, quota or cost limits, and data-sharing considerations. VisionRead ANPR currently uses **human review**, not an LLM API, for uncertain cases.
 
 We also examined the Awiros Indian OCR model. Its published material describes use of our main dataset as seed training data, so testing it on that same dataset would not be an independent comparison. Its inference setup also needs another runtime. We therefore did not add it to the headline result or the offline demo.
 
@@ -158,18 +158,18 @@ The dataset has some inaccurate XML labels, repeated video frames, foreign plate
 
 ## How this compares with real products and research
 
-**Commercial systems:** The basic detector-and-reader idea is already used in industry. For example, [AXIS License Plate Verifier](https://www.axis.com/en-ph/products/axis-license-plate-verifier) runs recognition on compatible cameras and supports vehicle access, free-flow traffic, search, and event logs. Some systems also identify vehicle type, color, make, and model. [Rekor Edge Pro documentation](https://docs.rekor.ai/edge-pro/configuring/overview) describes configuring camera exposure and infrared settings for day and night conditions. These examples show why camera choice and image capture matter as much as software. Commercial products may connect to gates, lists of allowed vehicles, databases, and continuous video streams. RiskGate currently analyzes uploaded still images or small batches on a laptop; it has no live camera, gate, traffic-scale storage, or deployment accuracy claim.
+**Commercial systems:** The basic detector-and-reader idea is already used in industry. For example, [AXIS License Plate Verifier](https://www.axis.com/en-ph/products/axis-license-plate-verifier) runs recognition on compatible cameras and supports vehicle access, free-flow traffic, search, and event logs. Some systems also identify vehicle type, color, make, and model. [Rekor Edge Pro documentation](https://docs.rekor.ai/edge-pro/configuring/overview) describes configuring camera exposure and infrared settings for day and night conditions. These examples show why camera choice and image capture matter as much as software. Commercial products may connect to gates, lists of allowed vehicles, databases, and continuous video streams. VisionRead ANPR currently analyzes uploaded still images or small batches on a laptop; it has no live camera, gate, traffic-scale storage, or deployment accuracy claim.
 
-**Research:** Researchers are still tackling low resolution, blur, different layouts, and confidence. The [ICPR 2026 low-resolution competition](https://arxiv.org/abs/2604.22506) used real low-quality plate tracks and showed that multiple views and difficult image conditions remain important. [BLPR](https://arxiv.org/abs/2604.09927) studies confidence-driven use of a vision-language model as a fallback. [Neural Sentinel](https://arxiv.org/abs/2602.07051) studies calibration and human involvement. These are examples of related ideas, **not features we invented or experiments we completed**. RiskGate's contribution is a small, transparent Indian-plate prototype that connects local detection, local OCR, calibrated whole-string confidence, and a measurable accept/review rule. Its measured accuracy is below what a dependable field system would need.
+**Research:** Researchers are still tackling low resolution, blur, different layouts, and confidence. The [ICPR 2026 low-resolution competition](https://arxiv.org/abs/2604.22506) used real low-quality plate tracks and showed that multiple views and difficult image conditions remain important. [BLPR](https://arxiv.org/abs/2604.09927) studies confidence-driven use of a vision-language model as a fallback. [Neural Sentinel](https://arxiv.org/abs/2602.07051) studies calibration and human involvement. These are examples of related ideas, **not features we invented or experiments we completed**. VisionRead ANPR's contribution is a small, transparent Indian-plate prototype that connects local detection, local OCR, calibrated whole-string confidence, and a measurable accept/review rule. Its measured accuracy is below what a dependable field system would need.
 
 **Why our result cannot be compared directly with a product's advertised accuracy:** Products may use purpose-built cameras, controlled installation angles, infrared lighting, repeated video frames, and different datasets or definitions of a “correct” read. We used a mixed public-image dataset and required the *entire plate string* to match. A fair comparison would run both systems on the same independently labeled images under the same conditions.
 
-Here are the research papers in one sentence each. Their reported results use different countries, datasets, and evaluation rules, so do not compare their percentages directly with RiskGate's 28% exact-match figure.
+Here are the research papers in one sentence each. Their reported results use different countries, datasets, and evaluation rules, so do not compare their percentages directly with VisionRead ANPR's 28% exact-match figure.
 
-| Research | Main idea | Relationship to RiskGate |
+| Research | Main idea | Relationship to VisionRead ANPR |
 | --- | --- | --- |
 | [Indian Licence Plate Dataset in the Wild](https://arxiv.org/abs/2111.06054) | Indian plates in everyday scenes vary in appearance and conditions. | Motivates using Indian vehicle photos instead of only neat plate crops. |
-| [VehiclePaliGemma](https://arxiv.org/abs/2412.14197) | Fine-tunes a vision-language model for difficult plate reading. | A possible stronger reader to study later; RiskGate did not train one. |
+| [VehiclePaliGemma](https://arxiv.org/abs/2412.14197) | Fine-tunes a vision-language model for difficult plate reading. | A possible stronger reader to study later; VisionRead ANPR did not train one. |
 | [Neural Sentinel](https://arxiv.org/abs/2602.07051) | Combines a vision-language model with confidence calibration and human corrections. | Related motivation for measuring confidence and showing corrections; our corrections are logged, not automatically used for continual learning. |
 | [BLPR](https://arxiv.org/abs/2604.09927) | Uses a second vision-language reader only when the first reading is uncertain. | A possible future fallback; our current uncertain cases go to a person. |
 | [ICPR 2026 low-resolution LPR competition](https://arxiv.org/abs/2604.22506) | Studies recognition on difficult low-resolution plate tracks. | Motivates testing small plates and combining multiple video frames later. |
@@ -185,22 +185,22 @@ Here are the research papers in one sentence each. Their reported results use di
 
 ## Which remaining files do what?
 
-Start with `app/streamlit_app.py`: its `analyze()` function finds the plate, reads the crop, builds confidence features, and applies the saved acceptance policy. The current branch contains runtime code; training and offline experiments are in the [archived research version](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final).
+Start with `app/streamlit_app.py`: its `analyze()` function finds the plate, reads the crop, builds confidence features, and applies the saved acceptance policy. The current branch contains runtime code; training and offline experiments are in the [archived research version](https://github.com/AarushDayal/VisionRead-ANPR/tree/submission-final).
 
 | File or group | Runtime purpose |
 | --- | --- |
 | `app/streamlit_app.py` | Upload/gallery, detector, analysis, review, batch export, and evidence tabs. |
-| `riskgate/config.py`, `contracts.py` | Local asset paths and the OCR result structure. |
-| `riskgate/engines/fastplate_engine.py` | The selected FastPlateOCR reader, using a local ONNX model. |
-| `riskgate/features.py`, `calibration.py` | Build six features and apply the saved logistic correctness model. No fitting occurs here. |
-| `riskgate/grammar.py`, `metrics.py`, `router.py` | Check format, normalize text, and apply saved thresholds. No threshold search occurs here. |
-| `riskgate/stability.py` | Optional image-transformation review veto, off by default. |
+| `visionread/config.py`, `contracts.py` | Local asset paths and the OCR result structure. |
+| `visionread/engines/fastplate_engine.py` | The selected FastPlateOCR reader, using a local ONNX model. |
+| `visionread/features.py`, `calibration.py` | Build six features and apply the saved logistic correctness model. No fitting occurs here. |
+| `visionread/grammar.py`, `metrics.py`, `router.py` | Check format, normalize text, and apply saved thresholds. No threshold search occurs here. |
+| `visionread/stability.py` | Optional image-transformation review veto, off by default. |
 | `scripts/package_submission.py` | Assemble the portable demo with model assets and recorded evidence. |
 | `tests/` | Check runtime confidence, routing, format, features, stability, and a gallery analysis. |
 | `docs/`, `presentation/` | Faculty guide, data notes, evaluation report, slides, and PDF. |
 | `data/`, `weights/`, `results/` | Local gallery, saved models, and recorded outputs. These are Git-ignored. |
 
-The historical detector training script is [available in the archive](https://github.com/AarushDayal/RiskGate-ANPR/blob/submission-final/scripts/detector.py); the current app loads its saved output. EasyOCR was used for the historical comparison but is no longer a runtime option.
+The historical detector training script is [available in the archive](https://github.com/AarushDayal/VisionRead-ANPR/blob/submission-final/scripts/detector.py); the current app loads its saved output. EasyOCR was used for the historical comparison but is no longer a runtime option.
 
 If asked about a line of code, identify **its input, output, and which step above it serves**. For example, `analyze()` receives image pixels and a mode, detects/crops when needed, calls OCR, estimates correctness, and returns a result dictionary to the screen. This is more useful than memorizing syntax without knowing what it does.
 
@@ -262,11 +262,11 @@ Choose one example that works and one that fails before the presentation. A fail
 
 ## Part 8: PBL research extension — checking whether a reading stays the same
 
-**Added 12 November 2026.** This section records the completed stability experiment. The generated line-by-line walkthrough is retained only in the [archived research version](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final).
+**Added 12 November 2026.** This section records the completed stability experiment. The generated line-by-line walkthrough is retained only in the [archived research version](https://github.com/AarushDayal/VisionRead-ANPR/tree/submission-final).
 
 ### A project title you can defend
 
-**RiskGate: An Offline, Uncertainty-Aware Number Plate Recognition System with Explainable Human Review and Image-Stability Testing.**
+**VisionRead ANPR: An Offline, Uncertainty-Aware Number Plate Recognition System with Explainable Human Review and Image-Stability Testing.**
 
 A useful research question is: *Can simple consistency checks identify unreliable plate readings beyond a calibrated confidence threshold, and what automation do we lose in exchange?* That is specific enough to implement, measure, and discuss. “An AI that reads plates” is a much less precise contribution.
 
@@ -333,7 +333,7 @@ The 1.96 constant gives the usual approximate 95% two-sided Wilson interval for 
 
 ### What is ours, what is reused, and what you can say about originality
 
-Existing components include YOLO, EasyOCR, FastPlateOCR, logistic regression, format checks, and the broader idea of selective prediction. Existing research already studies rejecting uncertain predictions: see [Selective Classification for Deep Neural Networks, 2017](https://proceedings.neurips.cc/paper_files/paper/2017/hash/4a8423d5e91fda00bb7e46540e2b0cf1-Abstract.html) and [SelectiveNet, 2019](https://proceedings.mlr.press/v97/geifman19a.html). RiskGate does not implement SelectiveNet's jointly trained architecture. Image transformations for scene-text recognition also predate this project; [STRAug, 2021](https://openaccess.thecvf.com/content/ICCV2021W/ILDAV/html/Atienza_Data_Augmentation_for_Scene_Text_Recognition_ICCVW_2021_paper.html) is a training augmentation paper, not evidence that our particular inference veto works.
+Existing components include YOLO, EasyOCR, FastPlateOCR, logistic regression, format checks, and the broader idea of selective prediction. Existing research already studies rejecting uncertain predictions: see [Selective Classification for Deep Neural Networks, 2017](https://proceedings.neurips.cc/paper_files/paper/2017/hash/4a8423d5e91fda00bb7e46540e2b0cf1-Abstract.html) and [SelectiveNet, 2019](https://proceedings.mlr.press/v97/geifman19a.html). VisionRead ANPR does not implement SelectiveNet's jointly trained architecture. Image transformations for scene-text recognition also predate this project; [STRAug, 2021](https://openaccess.thecvf.com/content/ICCV2021W/ILDAV/html/Atienza_Data_Augmentation_for_Scene_Text_Recognition_ICCVW_2021_paper.html) is a training augmentation paper, not evidence that our particular inference veto works.
 
 The concrete student-project contribution is integrating an offline full-photo pipeline, grouped data preparation, detector adaptation, reader comparison, whole-string correctness estimation, explicit review routing, visible evidence, local corrections, and a measured optional stability extension. That is substantial engineering and an experimental study. It does not establish a new algorithm or patentability. No patent search or legal novelty assessment has been completed. Do not put “patented,” “patent pending,” “first ever,” or “guaranteed safe” on the submission.
 
@@ -341,7 +341,7 @@ If asked for an invention direction, describe it as a **proposal for further inv
 
 ### A two-minute faculty pitch
 
-“My project is RiskGate, an offline number plate recognition and review system. It finds a plate in a vehicle image, reads the characters, and estimates whether the complete answer is correct. The important problem is that a readable-looking plate can still contain one wrong character. So I measure both how many cases the system automates and how many automated readings are wrong.
+“My project is VisionRead ANPR, an offline number plate recognition and review system. It finds a plate in a vehicle image, reads the characters, and estimates whether the complete answer is correct. The important problem is that a readable-looking plate can still contain one wrong character. So I measure both how many cases the system automates and how many automated readings are wrong.
 
 “I adapted a YOLO detector, compared local OCR readers, fitted a small correctness model, and selected review thresholds on separate validation data. The detector matches 248 out of 254 labelled boxes, but the complete pipeline reads only 71 plates exactly. The bottleneck is reading, and I show that limitation explicitly.
 
@@ -371,7 +371,7 @@ Start with `./venv/bin/streamlit run app/streamlit_app.py`. Choose a gallery pho
 
 `README.md` is the entry point and command reference. `requirements.txt` lists runtime Python packages and `requirements-dev.txt` adds pytest; it currently has no version pins, so installing later can produce a different environment. `Makefile` gives `make check` its test command. `.gitignore` excludes local environments, bulky/private data, generated results, model weights, and the submission ZIP from ordinary Git tracking. `.streamlit/config.toml` chooses demo colors and a 12 MB per-file upload limit. `presentation/presentation.html` contains slide content, CSS appearance, and a small JavaScript arrow-key navigator; the PDF is its printable export. `docs/DATA_NOTES.md` describes dataset provenance. `docs/EVALUATION_REPORT.md` contains the original measurements and this extension's summary. The historical chat handoff is retained in the archived research version. `docs/AGENTS.md` gives editing instructions to coding assistants, not instructions executed by the app.
 
-`data/` holds source images, labels, split manifests, and gallery assets. `weights/` holds the detector, OCR network, and calibration parameters. These binary weights are learned numerical arrays, not handwritten Python source. `results/` contains CSV predictions, JSON measurements, plots, and the local correction log. `RiskGate_Submission.zip` is a generated portable snapshot, not an additional implementation. Training scripts and offline evaluation helpers are retained in the archived research version rather than the runtime branch.
+`data/` holds source images, labels, split manifests, and gallery assets. `weights/` holds the detector, OCR network, and calibration parameters. These binary weights are learned numerical arrays, not handwritten Python source. `results/` contains CSV predictions, JSON measurements, plots, and the local correction log. `VisionRead_ANPR_Submission.zip` is a generated portable snapshot, not an additional implementation. Training scripts and offline evaluation helpers are retained in the archived research version rather than the runtime branch.
 
 ## Submission freeze: exploratory grammar results
 
