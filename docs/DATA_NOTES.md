@@ -1,5 +1,7 @@
 # Data notes
 
+Preparation and training scripts referenced here are preserved in the [`submission-final` archive](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final); this branch keeps only the runtime app and presentation material.
+
 - **Main source:** [Saisirishan Indian vehicle dataset](https://www.kaggle.com/datasets/saisirishan/indian-vehicle-dataset). Its archive has 1,697 image/XML pairs; two XMLs point to missing images, leaving 1,695 usable pairs. Kaggle metadata reports CC BY-NC-ND 4.0. Source images and generated crops stay local and Git-ignored.
 - **Source mix:** 601 State-wise OLX, 440 Google images, 654 video frames. A 180-crop visual sample found eight clear issues: four foreign plates, one vehicle badge, and three incomplete text labels. Three more crops need closer inspection. XML texts remain largely unverified; do not describe the set as clean Indian ground truth.
 - **Datacluster sample:** 47 images and 25 labeled plate instances. Its local `data/legacy/datacluster/README.md` says CC BY-NC-ND 4.0 and evaluation-only use. The 25 plates are a small cross-source check, not a reliable population estimate.

@@ -1,5 +1,7 @@
 # RiskGate ANPR: measured evaluation
 
+**Source archive:** This report records the completed research experiments. Training and evaluation scripts referenced below are preserved under [`submission-final`](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final). The current branch contains the runtime demo; no measurements were rerun for the cleanup.
+
 **Run date:** 10 November 2026  
 **Hardware:** RTX 4060 Laptop GPU (8 GB); FastPlateOCR used ONNX CPU inference.  
 **Project claim:** an offline Indian plate pipeline with measured accept/review behavior. These numbers describe an academic prototype, not deployment accuracy.

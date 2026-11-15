@@ -1,20 +1,25 @@
-from riskgate.calibration import fit, predict
-from riskgate.features import FEATURE_NAMES
-from riskgate.router import choose_thresholds, route, wilson_interval
+import math
+
+import pytest
+
+from riskgate.calibration import load, predict
+from riskgate.router import route
 
 
-def test_calibrator_roundtrip():
-    rows = [{**dict.fromkeys(FEATURE_NAMES, float(i % 5)), "ok": int(i % 2), "image": str(i)}
-            for i in range(30)]
-    model = fit(rows)
-    assert set(model["feature_names"]) == set(FEATURE_NAMES)
-    assert 0 <= predict(model, rows[0]) <= 1
+def test_saved_calibrator(tmp_path) -> None:
+    path = tmp_path / "calibration.json"
+    path.write_text('{"feature_names": ["raw_conf"], "coefficients": [2], '
+                    '"intercept": -1, "mean": [0.5], "scale": [0.25]}')
+    model = load(path)
+    assert predict(model, {"raw_conf": 0.75}) == pytest.approx(1 / (1 + math.exp(-1)))
+    assert predict(model, {"raw_conf": 1e6}) == 1.0
+    assert 0 <= predict(model, {"raw_conf": -1e6}) < 1e-300
 
 
-def test_wilson_and_invalid_rule():
-    assert wilson_interval(0, 100)[1] < 0.05
-    rows = [{"pred": "KA01AB1234", "calibrated_conf": i / 100, "ok": 1}
-            for i in range(100)]
-    thresholds = choose_thresholds(rows)
-    assert thresholds["0.05"]["accept_at"] is not None
-    assert route("junk", 1.0, thresholds["0.05"]) != "ACCEPT"
+def test_saved_threshold_routing() -> None:
+    policy = {"accept_at": 0.8, "review_below": 0.3}
+    assert route("KA01AB1234", 0.8, policy) == "ACCEPT"
+    assert route("KA01AB1234", 0.7, policy) == "ESCALATE"
+    assert route("KA01AB1234", 0.2, policy) == "REVIEW"
+    assert route("junk", 1.0, policy) != "ACCEPT"
+    assert route("KA01AB1234", 1.0, {**policy, "accept_at": None}) != "ACCEPT"

@@ -6,9 +6,6 @@ from riskgate.contracts import EngineResult
 from riskgate.grammar import classify
 
 
-FEATURE_NAMES = ("raw_conf", "grammar", "text_length", "crop_height", "crop_width", "boxes_found")
-
-
 def plate_features(crop: np.ndarray, result: EngineResult) -> dict[str, float]:
     height, width = crop.shape[:2]
     return {"raw_conf": float(result.raw_conf),

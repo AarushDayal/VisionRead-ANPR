@@ -1,7 +1,7 @@
 # RiskGate: complete faculty explanation in simple words
 
 **A plain-language guide to what we built, how it works, and why.**  
-**Project state checked:** 11 November 2026. For the precise experiment conditions, see the [evaluation report](EVALUATION_REPORT.md).
+**Runtime edition:** 16 November 2026. The full research source is preserved under the [`submission-final` tag](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final). Historical experiments below describe that archived version. For the precise experiment conditions, see the [evaluation report](EVALUATION_REPORT.md).
 
 ## The whole project in one minute
 
@@ -99,7 +99,7 @@ The 12 photos in the demo gallery are full vehicle or street scenes for showing 
 | Acceptance thresholds | Chosen on 255 separate validation predictions. A threshold is a decision rule, not another neural network. |
 | 254-image test | Used to report the results. Later detector changes were checked against this already-viewed test, so the updated comparison is exploratory. |
 
-To reproduce the steps, follow the commands in the [README](../README.md). The main scripts are `prepare_indian → detector prepare/train → baseline_v2 → eval_router → eval_end_to_end → plot_results`. The second detector source is imported before the extra training stage. The demo simply **loads** the saved detector, OCR reader, and correctness model; it does not train them when you click Analyze.
+To reproduce the historical experiments, use the source under the [`submission-final` tag](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final). In that version, the main scripts are `prepare_indian → detector prepare/train → baseline_v2 → eval_router → eval_end_to_end → plot_results`. The second detector source is imported before the extra training stage. The demo simply **loads** the saved detector, OCR reader, and correctness model; it does not train them when you click Analyze.
 
 ## Part 2: What happens to one photo in the demo
 
@@ -185,25 +185,22 @@ Here are the research papers in one sentence each. Their reported results use di
 
 ## Which remaining files do what?
 
-Start with the **live path**: `app/streamlit_app.py` calls the reader and detector, then `riskgate/features.py`, `calibration.py`, `grammar.py`, and `router.py`. Read the training and evaluation scripts afterward. Files with `__init__.py` simply mark Python packages.
+Start with `app/streamlit_app.py`: its `analyze()` function finds the plate, reads the crop, builds confidence features, and applies the saved acceptance policy. The current branch contains runtime code; training and offline experiments are in the [archived research version](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final).
 
-| File or group | Why it remains |
+| File or group | Runtime purpose |
 | --- | --- |
-| `app/streamlit_app.py` | The whole user interface: upload/gallery, analysis, decision display, correction, batch export, and evidence tabs. Its `analyze()` function is the live photo-to-decision path. |
-| `riskgate/config.py`, `contracts.py` | Project paths and small data shapes: a labeled plate sample and an OCR result. |
-| `riskgate/data.py` | Load annotated samples, apply any separately reviewed text overrides, group samples for splitting, and crop images. |
-| `riskgate/engines/easyocr_engine.py`, `fastplate_engine.py` | Wrap the two existing OCR libraries so each returns text, model score, timing, and error information in the same form. |
-| `riskgate/grammar.py`, `metrics.py` | Plate-format categories and measurement helpers such as exact match, character error rate, calibration error, and coverage. |
-| `riskgate/features.py`, `calibration.py`, `router.py` | Convert an OCR result into numeric signals, fit/load the correctness model, choose thresholds, and return ACCEPT or REVIEW/ESCALATE. The offline app displays non-accepted cases for review. |
-| `scripts/prepare_indian.py`, `import_extra_detection.py` | Read source annotations and prepare the original and extra detector data. |
-| `scripts/detector.py` | Prepare YOLO labels, train/fine-tune the detector, and measure box matching. |
-| `scripts/baseline_v2.py`, `eval_router.py`, `eval_end_to_end.py` | Compare OCR readers, fit confidence and select thresholds, then evaluate the full image pipeline. |
-| `scripts/prepare_gallery.py`, `label_tool.py` | Copy the real-scene demo gallery and review draft text labels without silently overwriting source XML labels. |
-| `scripts/plot_results.py`, `package_submission.py` | Draw the report charts and assemble the portable submission ZIP. |
-| `tests/` | Check grouping, labels, box math, OCR ordering, confidence, routing, metrics, and the live gallery path. |
-| `docs/`, `presentation/` | This explanation, data provenance, measured report, and slides. |
-| `data/`, `weights/`, `results/` | Local source/generated data, saved models, and experiment outputs. Large files are intentionally outside Git. |
-| `README.md`, `requirements.txt`, `Makefile`, `.streamlit/config.toml` | Starting instructions, Python dependencies, test command, and the demo's visual settings. |
+| `app/streamlit_app.py` | Upload/gallery, detector, analysis, review, batch export, and evidence tabs. |
+| `riskgate/config.py`, `contracts.py` | Local asset paths and the OCR result structure. |
+| `riskgate/engines/fastplate_engine.py` | The selected FastPlateOCR reader, using a local ONNX model. |
+| `riskgate/features.py`, `calibration.py` | Build six features and apply the saved logistic correctness model. No fitting occurs here. |
+| `riskgate/grammar.py`, `metrics.py`, `router.py` | Check format, normalize text, and apply saved thresholds. No threshold search occurs here. |
+| `riskgate/stability.py` | Optional image-transformation review veto, off by default. |
+| `scripts/package_submission.py` | Assemble the portable demo with model assets and recorded evidence. |
+| `tests/` | Check runtime confidence, routing, format, features, stability, and a gallery analysis. |
+| `docs/`, `presentation/` | Faculty guide, data notes, evaluation report, slides, and PDF. |
+| `data/`, `weights/`, `results/` | Local gallery, saved models, and recorded outputs. These are Git-ignored. |
+
+The historical detector training script is [available in the archive](https://github.com/AarushDayal/RiskGate-ANPR/blob/submission-final/scripts/detector.py); the current app loads its saved output. EasyOCR was used for the historical comparison but is no longer a runtime option.
 
 If asked about a line of code, identify **its input, output, and which step above it serves**. For example, `analyze()` receives image pixels and a mode, detects/crops when needed, calls OCR, estimates correctness, and returns a result dictionary to the screen. This is more useful than memorizing syntax without knowing what it does.
 
@@ -265,7 +262,7 @@ Choose one example that works and one that fails before the presentation. A fail
 
 ## Part 8: PBL research extension — checking whether a reading stays the same
 
-**Added 12 November 2026.** Use the [every-line source companion](CODE_WALKTHROUGH.md) alongside this guide. It contains the actual source and an explanation for every physical Python line, including tests. It explains our code; it does not pretend to explain millions of numbers inside downloaded neural networks.
+**Added 12 November 2026.** This section records the completed stability experiment. The generated line-by-line walkthrough is retained only in the [archived research version](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final).
 
 ### A project title you can defend
 
@@ -318,7 +315,7 @@ The extra reads took about **21.2 milliseconds per detected crop on this run**. 
 
 The veto removed one correct acceptance and retained the incorrect acceptance. Therefore it **did not improve the observed error rate**. The prototype leaves this experimental feature off by default. The sidebar lets you enable it for demonstration. This is a negative research result with an engineering consequence: a plausible extra check was measured, and the default policy was preserved because the evidence did not support enabling it.
 
-The full record, including every variant reading, is `results/stability_gallery.json`. Run `./venv/bin/python -m scripts.eval_stability` only when this record is absent; the script refuses to replace the first run. No original evaluation results or reviewed labels were overwritten. Future work should freeze a policy using calibration/validation images and test once on newly collected, independently labelled images. Choosing new transformations repeatedly to improve this 12-image result would overfit the gallery.
+The full record, including every variant reading, is `results/stability_gallery.json`. In the archived research version, run `./venv/bin/python -m scripts.eval_stability` only when this record is absent; the script refuses to replace the first run. No original evaluation results or reviewed labels were overwritten. Future work should freeze a policy using calibration/validation images and test once on newly collected, independently labelled images. Choosing new transformations repeatedly to improve this 12-image result would overfit the gallery.
 
 ### How the confidence mathematics works, slowly
 
@@ -372,13 +369,13 @@ If asked for an invention direction, describe it as a **proposal for further inv
 
 Start with `./venv/bin/streamlit run app/streamlit_app.py`. Choose a gallery photo in full-photo mode, click Analyze, and identify the box, crop, text, correctness estimate, and decision. Explain the distinction between detector score and whole-answer confidence. Enable the experimental sidebar checkbox and click Analyze again; changing the checkbox alone does not recompute a previously displayed result. Show the original and transformed readings. Open Measured evidence and the ablation panel. Finally demonstrate a correction and batch CSV export. Show difficult examples as well as easy ones.
 
-`README.md` is the entry point and command reference. `requirements.txt` lists Python packages; it currently has no version pins, so installing later can produce a different environment. `Makefile` gives `make check` its test command. `.gitignore` excludes local environments, bulky/private data, generated results, model weights, and the submission ZIP from ordinary Git tracking. `.streamlit/config.toml` chooses demo colors and a 12 MB per-file upload limit. `presentation/presentation.html` contains slide content, CSS appearance, and a small JavaScript arrow-key navigator; the PDF is its printable export. `docs/DATA_NOTES.md` describes dataset provenance. `docs/EVALUATION_REPORT.md` contains the original measurements and this extension's summary. `docs/CHAT_HANDOFF.md` preserves earlier project context and is historical. `docs/AGENTS.md` gives editing instructions to coding assistants, not instructions executed by the app.
+`README.md` is the entry point and command reference. `requirements.txt` lists runtime Python packages and `requirements-dev.txt` adds pytest; it currently has no version pins, so installing later can produce a different environment. `Makefile` gives `make check` its test command. `.gitignore` excludes local environments, bulky/private data, generated results, model weights, and the submission ZIP from ordinary Git tracking. `.streamlit/config.toml` chooses demo colors and a 12 MB per-file upload limit. `presentation/presentation.html` contains slide content, CSS appearance, and a small JavaScript arrow-key navigator; the PDF is its printable export. `docs/DATA_NOTES.md` describes dataset provenance. `docs/EVALUATION_REPORT.md` contains the original measurements and this extension's summary. The historical chat handoff is retained in the archived research version. `docs/AGENTS.md` gives editing instructions to coding assistants, not instructions executed by the app.
 
-`data/` holds source images, labels, split manifests, and gallery assets. `weights/` holds the detector, OCR network, and calibration parameters. These binary weights are learned numerical arrays, not handwritten Python source. `results/` contains CSV predictions, JSON measurements, plots, and the local correction log. `RiskGate_Submission.zip` is a generated portable snapshot, not an additional implementation. The every-line companion covers all first-party Python files and tests; external dependencies, data rows, model tensors, and generated binary artifacts are explained by role rather than pretending that each byte is a source-code line.
+`data/` holds source images, labels, split manifests, and gallery assets. `weights/` holds the detector, OCR network, and calibration parameters. These binary weights are learned numerical arrays, not handwritten Python source. `results/` contains CSV predictions, JSON measurements, plots, and the local correction log. `RiskGate_Submission.zip` is a generated portable snapshot, not an additional implementation. Training scripts and offline evaluation helpers are retained in the archived research version rather than the runtime branch.
 
 ## Submission freeze: exploratory grammar results
 
-**15 November 2026.** The [Exploratory: grammar + conservative threshold](EVALUATION_REPORT.md#exploratory-grammar--conservative-threshold) experiment is **crop-level only**: it reuses cached FastPlateOCR readings, not the full-photo detector pipeline. **The test set was already viewed**, so this is an exploratory repeated test, not a blinded result. **Grammar correction is NOT enabled in the app by default**; it remains in a separate evaluation script. The app, saved confidence model, thresholds, and earlier measurements are unchanged.
+**15 November 2026.** The [Exploratory: grammar + conservative threshold](EVALUATION_REPORT.md#exploratory-grammar--conservative-threshold) experiment is **crop-level only**: it reuses cached FastPlateOCR readings, not the full-photo detector pipeline. **The test set was already viewed**, so this is an exploratory repeated test, not a blinded result. **Grammar correction is NOT enabled in the app by default**; its separate evaluation script is preserved in the archived research version. The app, saved confidence model, thresholds, and earlier measurements are unchanged.
 
 The correction uses positions in strings of length 9–11: two state letters, two district digits, one to three series letters, and four final digits. It substitutes only O/0, I/1, B/8, S/5 and Z/2 according to those positions. It does not cover every Indian format or check whether a state code exists. Two correctness calibrators were fitted on 339 calibration readings, with corrected correctness labels for the grammar variant and unchanged cached features. Thresholds were selected on 255 validation readings and frozen before evaluating the 254 test readings.
 
@@ -395,4 +392,4 @@ Grammar improved exact match and mean character error rate, but **10% target acc
 
 **Viva: Why did Clopper–Pearson change nothing?** We replaced the Wilson threshold-selection bound with the upper endpoint of the two-sided 95% exact Clopper–Pearson interval. On these validation readings, both bounds qualified the same lowest confidence cutoffs at all three targets. The bounds differ numerically, but no cutoff decision changed, so the accepted test sets stayed identical. Exact binomial intervals do not fix OCR errors or provide a guarantee after searching thresholds, especially with correlated video frames.
 
-The submission is frozen after packaging and verification. No new features are planned for this submission.
+The full submission was frozen under `submission-final`. The current branch was subsequently reduced to runtime and faculty presentation files; models, thresholds, and recorded results were preserved.

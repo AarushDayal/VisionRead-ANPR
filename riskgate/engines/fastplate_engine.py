@@ -1,4 +1,4 @@
-"""Small local ONNX plate reader used for a fair OCR comparison."""
+"""Local ONNX plate reader used by the demo."""
 
 import time
 

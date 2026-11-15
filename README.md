@@ -1,64 +1,69 @@
 # RiskGate ANPR
 
-An offline Indian number plate research prototype. It detects a plate in a vehicle photo, reads the crop with a local OCR model, estimates whether the whole reading is correct, and sends uncertain cases for human review. The [faculty explanation](docs/FACULTY_EXPLANATION.md) explains the data flow, training, code files, industry comparison, and viva questions in simple language. The [evaluation report](docs/EVALUATION_REPORT.md) records the measured results and limitations.
+An offline number plate demo: **vehicle photo → YOLO plate detector → FastPlateOCR → correctness estimate → ACCEPT or REVIEW**.
 
-## PBL research extension
+This branch contains the app and presentation material. The complete training, evaluation, and experiment source is preserved under [`submission-final`](https://github.com/AarushDayal/RiskGate-ANPR/tree/submission-final). The demo loads saved models; it does not retrain them.
 
-The sidebar offers an **experimental stability check**: read a resized and slightly brightened crop, show both readings, and veto acceptance on disagreement. It is off by default because the 12-scene gallery ablation reduced acceptance from 5 to 4 while retaining the same one wrong acceptance (accepted error 20% → 25%). This is a measured negative result, not an accuracy gain. See the evidence panel and `results/stability_gallery.json`.
+## Run
 
-Read [the complete beginner guide](docs/FACULTY_EXPLANATION.md) for the project pitch, training, maths, research boundaries, new experiment, demo sequence, and viva answers. [Every Python line explained](docs/CODE_WALKTHROUGH.md) includes all first-party source files and tests. Regenerate it after edits with `./venv/bin/python -m scripts.explain_code`. This prototype has no established patentability; existing selective-prediction research is cited in the guide.
-
-## Current measured result
-
-On 254 grouped test images, the expanded detector matched 248 plate boxes at IoU ≥ 0.5, up from 237 before adding 180 screened full vehicle photos. The complete photo-to-text pipeline read 71/254 whole plates exactly (28.0%). At the threshold selected for a 10% validation error target, it accepted 75/254 automatically and 11 accepted readings were wrong (14.7% observed error). The detector comparison reuses a previously viewed test; these are prototype results on XML labels that have only a sampled visual audit. Strict 2% and 5% targets accepted no plates.
-
-## Run the demo
-
-The local environment already has its dependencies and generated model files:
+On the prepared project laptop:
 
 ```sh
 ./venv/bin/streamlit run app/streamlit_app.py
 ```
 
-Open the local address Streamlit prints. The demo uses local models and makes no API calls. Choose **Full vehicle photo** for the detector-plus-OCR flow, or **Plate crop** to examine OCR separately. The gallery now contains 12 real-world vehicle scenes, not plate-only photos, and works in the portable bundle. Batch review accepts up to 20 uploads and exports CSV. The evidence tab shows the test plots and detector comparison. Human corrections are saved locally in `results/review_corrections.csv`.
+Open the address Streamlit prints. Choose **Demo gallery**, select a vehicle photo, and click **Analyze plate**. You can also upload a photo, inspect a plate crop, review a batch, and save a human correction locally.
 
-The [ten-slide presentation](presentation/RiskGate_Presentation.pdf) is ready to use; [interactive slides](presentation/presentation.html) support arrow-key navigation. The local `weights/` folder contains the detector and OCR files needed for an offline demo on this machine.
-
-`RiskGate_Submission.zip` is a portable copy of the demo, models, charts, report, slides, and 12 original vehicle scenes without the full datasets or API keys. It is generated with `./venv/bin/python -m scripts.package_submission`. The gallery source is credited in its manifest and [data notes](docs/DATA_NOTES.md). On another machine, create a Python virtual environment, install `requirements.txt`, and run the Streamlit command.
-
-## Rebuild the experiment
-
-The source archive is the [Saisirishan Indian vehicle dataset](https://www.kaggle.com/datasets/saisirishan/indian-vehicle-dataset). Place its extracted folders under `data/indian/`, then run:
+On another machine, extract `RiskGate_Submission.zip`, then run:
 
 ```sh
+python -m venv venv
 ./venv/bin/pip install -r requirements.txt
-./venv/bin/python -m scripts.prepare_indian
-./venv/bin/python -m scripts.detector prepare
-./venv/bin/python -m scripts.import_extra_detection  # after extracting the second source to data/extra_detection/
-./venv/bin/python -m scripts.prepare_gallery
-./venv/bin/python -m scripts.baseline_v2
-./venv/bin/python -m scripts.eval_router --fit
-./venv/bin/python -m scripts.eval_router --final
-./venv/bin/python -m scripts.detector train --epochs 12
-./venv/bin/python -m scripts.eval_end_to_end
-./venv/bin/python -m scripts.plot_results
-make check
+./venv/bin/streamlit run app/streamlit_app.py
 ```
 
-GPU training and GPU EasyOCR inference require a working CUDA installation. The project was run with an RTX 4060 Laptop GPU; FastPlateOCR uses local ONNX CPU inference. The detector training run was interrupted after three completed epochs; its best available checkpoint was copied to `weights/plate_detector.pt` and evaluated. The one-time test commands refuse to overwrite final results.
+A Git clone alone does not include the models or gallery. The prepared ZIP includes the required assets:
 
-The source images, crops, generated weights, and result files are Git-ignored. Do not redistribute the dataset. See the [data notes](docs/DATA_NOTES.md).
+- `weights/plate_detector.pt`: fine-tuned YOLO detector.
+- `weights/fastplate/`: local ONNX reader and its configuration.
+- `weights/calibration.json`: saved correctness model and thresholds.
+- `data/sample_gallery/`: 12 vehicle photos and their manifest.
+- `results/`: recorded evidence and charts used by the dashboard.
 
-## Project layout
+The demo uses FastPlateOCR only. No API key is required. The experimental stability checkbox remains off by default; grammar substitutions are not used by the app.
 
-| Folder | Contents |
+## Faculty presentation
+
+- [Faculty guide](docs/FACULTY_EXPLANATION.md): how the project works, what was trained, and viva answers.
+- [Measured evaluation](docs/EVALUATION_REPORT.md): results and experimental limitations.
+- [Presentation PDF](presentation/RiskGate_Presentation.pdf) · [interactive slides](presentation/presentation.html).
+- [Data notes](docs/DATA_NOTES.md): sources, label quality, and attribution.
+
+The expanded detector matched **248/254** boxes. The full-image pipeline read **71/254** plates exactly (28.0%); at the 10% validation target it accepted **75**, with **11 errors** (14.7%). These are prototype results on an already-viewed test, not a deployment guarantee.
+
+The separate grammar experiment was **crop-level only**, on the already-viewed test. Exact matches rose 71 → 90/254, but accepted error at the 10% target rose **12.5% → 15.5%**. Clopper–Pearson selected the same cutoffs. Grammar remains outside the app. The optional stability experiment also failed to improve accepted error on the 12 gallery examples.
+
+## Code map
+
+| Path | Purpose |
 | --- | --- |
-| `app/` | Streamlit demo. |
-| `riskgate/` | Detection, OCR wrappers, confidence, and routing code. |
-| `scripts/` | Data preparation, training, evaluation, and packaging. |
-| `tests/` | Automated checks. |
-| `docs/` | Project explanation, data notes, and measured evaluation. |
-| `presentation/` | Slides and PDF for the faculty presentation. |
-| `data/`, `weights/`, `results/` | Local inputs, model files, and generated outputs. |
+| `app/streamlit_app.py` | Dashboard and full photo-to-decision flow. |
+| `riskgate/engines/fastplate_engine.py` | Read plate crops with the local ONNX model. |
+| `riskgate/features.py`, `calibration.py` | Build six input signals and apply the saved correctness model. |
+| `riskgate/grammar.py`, `metrics.py`, `router.py` | Classify format, normalize text, and apply saved thresholds. |
+| `riskgate/stability.py` | Optional resize/brightness review veto. |
+| `riskgate/config.py`, `contracts.py` | Local paths and OCR result structure. |
+| `tests/` | Runtime checks and a real gallery-photo smoke test. |
+| `scripts/package_submission.py` | Assemble the portable demo ZIP. |
 
-Run commands from the project root. The generated submission ZIP stays at the root; calibration lives in `weights/`, and the grouped split manifest lives in `data/`.
+## Check and package
+
+```sh
+./venv/bin/pip install -r requirements-dev.txt
+make check
+./venv/bin/python -m scripts.package_submission
+```
+
+Training tools, offline experiments, the alternate reader, and the generated line-by-line walkthrough were removed from this branch for presentation. To inspect how the models were built, browse the archived tag, especially [`scripts/detector.py`](https://github.com/AarushDayal/RiskGate-ANPR/blob/submission-final/scripts/detector.py).
+
+Models, datasets, generated results, and the ZIP remain Git-ignored. Local data and recorded results are preserved. See the data notes before redistributing source imagery.

@@ -1,9 +1,5 @@
+numpy
 opencv-python
-easyocr
-torch
-pytest
-scikit-learn
-matplotlib
 streamlit
 ultralytics
 fast-plate-ocr[onnx]

@@ -17,7 +17,6 @@ import streamlit as st
 
 from riskgate import config
 from riskgate.calibration import load, predict
-from riskgate.engines.easyocr_engine import EasyOCREngine
 from riskgate.engines.fastplate_engine import FastPlateEngine
 from riskgate.features import plate_features
 from riskgate.grammar import classify
@@ -72,8 +71,8 @@ def card(label: str, value: str, note: str) -> None:
 
 
 @st.cache_resource
-def reader(name: str):
-    return FastPlateEngine() if name == "FastPlateOCR" else EasyOCREngine(config.READER_UPSCALE, config.READER_ALLOWLIST)
+def reader() -> FastPlateEngine:
+    return FastPlateEngine()
 
 
 @st.cache_resource
@@ -88,26 +87,11 @@ def demo_examples() -> dict[str, dict]:
         with gallery.open(newline="") as source:
             return {f"{index:02d} · {row['truth']}": row
                     for index, row in enumerate(csv.DictReader(source), 1)}
-    baseline = config.RESULTS_DIR / "end_to_end_details.csv"
-    manifest = config.ROOT / "data/indian_manifest.csv"
-    if not baseline.exists() or not manifest.exists():
-        return {}
-    with baseline.open(newline="") as source:
-        rows = list(csv.DictReader(source))
-    with manifest.open(newline="") as source:
-        original = {r["image_path"]: r for r in csv.DictReader(source)}
-    selected = [next((r for r in rows if int(r["ok"]) == outcome and r["route"] == decision
-                      and r["image"] in original), None)
-                for outcome, decision in ((1, "ACCEPT"), (0, "REVIEW"))]
-    result = {}
-    for index, item in enumerate(selected):
-        if item:
-            result[f"Example {index+1} · {'accepted read' if index == 0 else 'difficult read'}"] = original[item["image"]]
-    return result
+    return {}
 
 
 def analyze(image: np.ndarray, full_image: bool, model: dict | None,
-            reader_name: str, target: str = "0.10", stability_enabled: bool = False) -> dict:
+            target: str = "0.10", stability_enabled: bool = False) -> dict:
     marked = image.copy()
     crop = image
     detection = None
@@ -127,7 +111,7 @@ def analyze(image: np.ndarray, full_image: bool, model: dict | None,
         detection = float(box.conf[0])
     if crop.size == 0:
         return {"error": "The detected crop was empty. Review the image manually."}
-    read = reader(reader_name).read(crop)
+    read = reader().read(crop)
     text = normalize(read.text)
     calibrated = predict(model, plate_features(crop, read)) if model and text else None
     if calibrated is None:
@@ -139,7 +123,7 @@ def analyze(image: np.ndarray, full_image: bool, model: dict | None,
         reason = f"Confidence passed the threshold chosen for the {float(target):.0%} validation target" if initial == "ACCEPT" else (
             "Eligible for an optional second opinion; review offline" if initial == "ESCALATE" else "Low confidence or invalid format")
     base_decision = decision
-    stability = check_stability(crop, text, reader(reader_name).read) if stability_enabled else None
+    stability = check_stability(crop, text, reader().read) if stability_enabled else None
     if stability:
         decision = apply_veto(decision, stability)
         if decision != base_decision:
@@ -166,8 +150,6 @@ def save_correction(image_bytes: bytes, proposed: str, corrected: str) -> None:
 
 model_path = config.CALIBRATION_MODEL
 calibration = load(model_path) if model_path.exists() else None
-selected_path = config.RESULTS_DIR / "selected_reader.json"
-reader_name = json.loads(selected_path.read_text())["reader"] if selected_path.exists() else "EasyOCR"
 final_path = config.RESULTS_DIR / "final_test.json"
 final = json.loads(final_path.read_text()) if final_path.exists() else None
 detector_path = config.ROOT / "weights/plate_detector.pt"
@@ -186,7 +168,7 @@ st.sidebar.caption("Two extra OCR reads. Disagreement forces review; agreement d
 st.sidebar.divider()
 st.sidebar.write("**Active components**")
 st.sidebar.write(f"Detector: {'ready' if detector_path.exists() else 'unavailable'}")
-st.sidebar.write(f"Reader: {reader_name}")
+st.sidebar.write("Reader: FastPlateOCR")
 st.sidebar.write(f"Confidence model: {'ready' if calibration else 'unavailable'}")
 st.sidebar.caption("Inputs and corrections stay on this machine.")
 
@@ -247,7 +229,7 @@ with demo_tab:
                 st.error("Could not decode this image.")
             else:
                 st.session_state["analysis"] = analyze(image, mode == "Full vehicle photo", calibration,
-                                                        reader_name, policy_target, stability_enabled)
+                                                        policy_target, stability_enabled)
                 st.session_state["source_bytes"] = image_bytes
                 st.session_state["example_truth"] = example_truth
         if "analysis" in st.session_state:
@@ -304,7 +286,7 @@ with batch_tab:
         for index, uploaded in enumerate(uploads, 1):
             image = cv2.imdecode(np.frombuffer(uploaded.getvalue(), np.uint8), cv2.IMREAD_COLOR)
             result = analyze(image, batch_mode == "Full vehicle photos", calibration,
-                             reader_name, policy_target, stability_enabled) if image is not None else {"error": "Invalid image"}
+                             policy_target, stability_enabled) if image is not None else {"error": "Invalid image"}
             records.append({"file": uploaded.name, "plate": result.get("text", ""),
                             "decision": result.get("route", "REVIEW"),
                             "base_decision": result.get("base_route", "REVIEW"),
