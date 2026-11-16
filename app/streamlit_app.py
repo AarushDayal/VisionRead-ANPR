@@ -1,4 +1,4 @@
-"""Offline plate reading demo and transparent experiment dashboard."""
+"""Offline plate reading and batch review demo."""
 
 import csv
 import hashlib
@@ -150,8 +150,6 @@ def save_correction(image_bytes: bytes, proposed: str, corrected: str) -> None:
 
 model_path = config.CALIBRATION_MODEL
 calibration = load(model_path) if model_path.exists() else None
-final_path = config.RESULTS_DIR / "final_test.json"
-final = json.loads(final_path.read_text()) if final_path.exists() else None
 detector_path = config.ROOT / "weights/plate_detector.pt"
 end_path = config.RESULTS_DIR / "end_to_end_extra.json"
 if not end_path.exists():
@@ -187,8 +185,7 @@ with top[3]:
 st.markdown("<div class='section-kicker'>System flow</div>", unsafe_allow_html=True)
 st.markdown("""<span class="stage"><strong>01</strong> Detect plate</span><span class="stage"><strong>02</strong> Read characters</span><span class="stage"><strong>03</strong> Check format</span><span class="stage"><strong>04</strong> Estimate correctness</span><span class="stage"><strong>05</strong> Accept or review</span>""", unsafe_allow_html=True)
 
-demo_tab, batch_tab, evidence_tab, method_tab = st.tabs(
-    ["◈   Live analysis", "▦   Batch review", "▥   Measured evidence", "◎   Method & limits"])
+demo_tab, batch_tab = st.tabs(["◈   Live analysis", "▦   Batch review"])
 
 with demo_tab:
     left, right = st.columns([1, 1.25], gap="large")
@@ -309,74 +306,5 @@ with batch_tab:
             st.dataframe(list(csv.DictReader(correction_path.open(newline=""))),
                          width="stretch", hide_index=True)
 
-with evidence_tab:
-    stability_report = config.RESULTS_DIR / "stability_gallery.json"
-    if stability_report.exists():
-        experiment = json.loads(stability_report.read_text())
-        with st.expander("New research experiment: stability veto ablation"):
-            st.caption(experiment["scope"])
-            st.dataframe([{"policy": key, **value} for key, value in experiment["policies"].items()], hide_index=True)
-            st.warning("This gallery experiment removed one correct acceptance and retained the wrong acceptance. It did not improve observed error. The check remains optional and is off by default.")
-            st.caption(f"Mean extra processing time: {experiment['mean_extra_latency_ms']:.1f} ms on this run.")
-    st.subheader("What the held-out evaluation actually showed")
-    st.caption("A 10% target was chosen on validation data. The final-test error can exceed that target; the interval shows uncertainty.")
-    if final:
-        target = final["targets"]["0.10"]
-        cols = st.columns(4)
-        cols[0].metric("Test plates", final["n"])
-        cols[1].metric("Accepted", target["accepted"])
-        cols[2].metric("Auto coverage", f"{target['coverage']:.1%}")
-        cols[3].metric("Error among accepted", f"{target['observed_error']:.1%}" if target["observed_error"] is not None else "—")
-        st.warning("At the stricter 2% and 5% validation targets, no test plates were accepted automatically. The 10% target accepted 72/254, and 9 of those 72 were wrong. This dataset also contains some non-Indian examples and unverified XML labels.")
-        if end:
-            st.subheader("Complete vehicle-photo pipeline")
-            end_cols = st.columns(4)
-            end_cols[0].metric("Exact plate matches", f"{end['whole_plate_exact']}/{end['n']}")
-            end_cols[1].metric("End-to-end accuracy", f"{end['whole_plate_accuracy']:.1%}")
-            end_cols[2].metric("Accepted automatically", end["accepted"])
-            end_cols[3].metric("Accepted errors", end["accepted_errors"])
-            st.caption(f"Full-image route: {end['accepted']}/{end['n']} accepted, {end['accepted_errors']} wrong ({end['accepted_error']:.1%} observed accepted error). The expanded detector was evaluated after the earlier test results were viewed.")
-        plot_cols = st.columns(2, gap="large")
-        for column, name, title in ((plot_cols[0], "risk_coverage.png", "Risk versus coverage"),
-                                    (plot_cols[1], "reliability.png", "Confidence calibration")):
-            with column:
-                path = config.RESULTS_DIR / name
-                if path.exists():
-                    st.image(str(path), caption=title, width="stretch")
-        detector_report = config.RESULTS_DIR / "detector_test.json"
-        if detector_report.exists():
-            report = json.loads(detector_report.read_text())
-            st.subheader("Full-image detector · expanded training")
-            dcols = st.columns(3)
-            dcols[0].metric("Test images", report["test_images"])
-            dcols[1].metric("Found a plate", report["images_with_detection"])
-            dcols[2].metric("Matched box at IoU ≥ 0.5", f"{report['recall_at_iou_05']:.1%}")
-            comparison = config.RESULTS_DIR / "detector_comparison.json"
-            if comparison.exists():
-                versions = json.loads(comparison.read_text())
-                st.dataframe([{"version": "Original", "training images": 847,
-                               "matched boxes": versions["original"]["matched_at_iou_05"],
-                               "recall": f"{versions['original']['recall_at_iou_05']:.1%}"},
-                              {"version": "Expanded", "training images": 1027,
-                               "matched boxes": versions["expanded_training"]["matched_at_iou_05"],
-                               "recall": f"{versions['expanded_training']['recall_at_iou_05']:.1%}"}],
-                             width="stretch", hide_index=True)
-        summary = config.RESULTS_DIR / "baseline_v2_summary.txt"
-        if summary.exists():
-            with st.expander("Complete OCR comparison"):
-                st.code(summary.read_text(), language="text")
-    else:
-        st.info("The evaluation pipeline has not produced final numbers yet.")
-
-with method_tab:
-    st.subheader("A readable system, not a black box")
-    st.markdown("""
-**Detection** finds a rectangle around the plate in a full vehicle image. **OCR** reads letters and digits from that crop. **Calibration** uses labeled examples to estimate whether the whole reading is right. **Routing** accepts only readings above a threshold chosen on validation data; others go to review.
-
-The data is split by repeated plate identity and source video. The local reader is selected using the training split; confidence is fitted on calibration data, and thresholds are chosen on validation data. An additional box-only source added 180 screened full vehicle photos to detector training. Its other 1,902 plate crops have no trustworthy text labels and are not used for OCR evaluation. The 12-gallery examples are original full vehicle photos from the first source, with their XML plate text visually checked; they are demo examples, not a benchmark. The source XML labels have only a sampled visual audit so far, and some Google images show foreign plates. The OCR test statistics were viewed before the routing evaluation, and the expanded detector was evaluated on that same test. These results are **held out from fitting but not fully blinded**.
-
-This is an academic prototype. Glare, motion blur, tiny crops, uncommon layouts, and new cameras can reduce accuracy. Human correction remains necessary for uncertain cases. No plate image or API key is sent to a cloud service by this demo.
-""")
-    st.markdown("**Research basis:** [BLPR](https://arxiv.org/abs/2604.09927) · [Neural Sentinel](https://arxiv.org/abs/2602.07051) · [Nigerian VLM evaluation](https://arxiv.org/abs/2607.02025) · [VehiclePaliGemma](https://arxiv.org/abs/2412.14197) · [ICPR low-resolution competition](https://arxiv.org/abs/2604.22506) · [Indian LPR dataset](https://arxiv.org/abs/2111.06054)")
 
 st.markdown("<div class='foot'>Vision<span style='color:#5fe6ca'>Read</span> ANPR / LAB · Local inference · Measured uncertainty · Human review</div>", unsafe_allow_html=True)
