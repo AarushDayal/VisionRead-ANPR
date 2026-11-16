@@ -34,7 +34,6 @@ The demo uses FastPlateOCR only. No API key is required. The experimental stabil
 
 ## Faculty presentation
 
-- [Faculty guide](docs/FACULTY_EXPLANATION.md): how the project works, what was trained, and viva answers.
 - [Measured evaluation](docs/EVALUATION_REPORT.md): results and experimental limitations.
 - [Presentation PDF](presentation/VisionRead_ANPR_Presentation.pdf) · [interactive slides](presentation/presentation.html).
 - [Data notes](docs/DATA_NOTES.md): sources, label quality, and attribution.
